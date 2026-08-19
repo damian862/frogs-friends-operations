@@ -2,7 +2,6 @@
   // Final recurring-booking UI stabiliser. Loaded after site-context wrappers.
   const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
-  // Rebind Manage explicitly so later render wrappers cannot prevent it toggling.
   window.manageProgramme=function(id){
     OPEN_PROG=OPEN_PROG===id?null:id;
     window.renderRecurringBookings();
@@ -94,7 +93,11 @@
               const reveal=document.createElement('script');reveal.src='app-22.js';
               reveal.onload=()=>{
                 const finalReveal=document.createElement('script');finalReveal.src='app-23.js';
-                finalReveal.onload=()=>{const calendarDefault=document.createElement('script');calendarDefault.src='app-24.js';document.body.appendChild(calendarDefault)};
+                finalReveal.onload=()=>{
+                  const calendarDefault=document.createElement('script');calendarDefault.src='app-24.js';
+                  calendarDefault.onload=()=>{const staffingManage=document.createElement('script');staffingManage.src='app-25.js';document.body.appendChild(staffingManage)};
+                  document.body.appendChild(calendarDefault)
+                };
                 document.body.appendChild(finalReveal)
               };
               document.body.appendChild(reveal)
