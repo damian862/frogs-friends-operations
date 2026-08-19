@@ -76,3 +76,8 @@
   `;
   document.head.appendChild(style);
 })();
+
+(function(){
+  const css=document.createElement('link');css.rel='stylesheet';css.href='admin-access.css';document.head.appendChild(css);
+  const s=document.createElement('script');s.src='app-16.js';s.defer=true;document.body.appendChild(s);
+})();
