@@ -27,4 +27,6 @@
     return new Date(y,m-1,1,12).toLocaleDateString('en-GB',{month:'long',year:'numeric'});
   }
   window.OpsUtil=Object.freeze({isoDate,parseDate,hoursBetween,money,monthBounds,monthLabel});
+  const css=document.createElement('link');css.rel='stylesheet';css.href='site-access.css';document.head.appendChild(css);
+  window.addEventListener('load',()=>{if(document.querySelector('script[data-site-access]'))return;const s=document.createElement('script');s.src='app-14.js';s.dataset.siteAccess='1';document.body.appendChild(s)});
 })();
