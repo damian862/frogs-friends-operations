@@ -84,7 +84,11 @@
     const fix=document.createElement('script');fix.src='app-17.js';
     fix.onload=()=>{
       const staffing=document.createElement('script');staffing.src='app-18.js';
-      staffing.onload=()=>{const dynamic=document.createElement('script');dynamic.src='app-19.js';document.body.appendChild(dynamic)};
+      staffing.onload=()=>{
+        const dynamic=document.createElement('script');dynamic.src='app-19.js';
+        dynamic.onload=()=>{const billing=document.createElement('script');billing.src='app-20.js';document.body.appendChild(billing)};
+        document.body.appendChild(dynamic)
+      };
       document.body.appendChild(staffing)
     };
     document.body.appendChild(fix)
