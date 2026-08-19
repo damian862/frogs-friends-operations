@@ -13,3 +13,22 @@ return `<div class="rb-overview"><div class="rb-ov-section"><div class="rb-ov-ti
 renderRecurringBookings=function(){baseRenderRecurringBookings();let host=$('rProg');if(!host)return;let rows=cardRows(),cards=[...host.querySelectorAll('.rb-item')];cards.forEach((card,i)=>{let x=rows[i];if(!x)return;let existing=card.querySelector('.rb-overview');if(existing)existing.remove();let summary=card.querySelector('.rb-summary');if(summary)summary.insertAdjacentHTML('afterend',overviewFor(x))})};
 const st=document.createElement('style');st.textContent=`.rb-overview{border-top:1px solid #e3e9ef;padding:12px 16px 14px;background:#fbfcfe}.rb-ov-section{min-width:0}.rb-ov-title{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#53687a;margin:0 0 7px}.rb-ov-row{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-top:1px solid #edf1f4}.rb-ov-row:first-of-type{border-top:0}.rb-ov-main{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}.rb-ov-main b{min-width:92px}.rb-ov-main span:last-child{color:#526473}.rb-ov-meta{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;font-size:12px;color:#53687a}.rb-ov-meta span{background:#eef3f7;border-radius:999px;padding:3px 7px}.rb-ov-two{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:12px}.rb-ov-chips{display:flex;gap:6px;flex-wrap:wrap}.rb-ov-chip{display:inline-flex;gap:6px;align-items:center;border-radius:8px;padding:6px 8px;font-size:12px}.rb-ov-chip.break{background:#fff7e6;border:1px solid #f0dfb5}.rb-ov-chip.cancel{background:#fff0f0;border:1px solid #efcdcd}.rb-ov-chip span{color:#53687a}.rb-ov-empty{font-size:12px;color:#81909d}@media(max-width:800px){.rb-ov-two{grid-template-columns:1fr}.rb-ov-row{display:block}.rb-ov-meta{justify-content:flex-start;margin-top:5px}}`;document.head.appendChild(st);
 })();
+
+// Keep Manage > Cancellations consistent with the wizard: date first, then only sessions on that day.
+editCancellation=function(id,pid){
+ let x=EX.find(z=>z.id===id)||{},programmeId=pid||x.programme_id;
+ let all=RS.filter(s=>s.programme_id===programmeId&&s.active!==false);
+ const optionsForDate=(date,selected)=>{
+   if(!date)return '<option value="">Choose a date first</option>';
+   let day=new Date(date+'T12:00:00').getDay();
+   let matches=all.filter(s=>Number(s.day_of_week)===day).sort((a,b)=>String(a.start_time).localeCompare(String(b.start_time)));
+   if(!matches.length)return '<option value="">No recurring sessions run on this date</option>';
+   return matches.map(s=>`<option value="${s.id}" ${selected===s.id?'selected':''}>${String(s.start_time||'').slice(0,5)}–${String(s.end_time||'').slice(0,5)} · ${e(s.title||'Swimming lessons')}</option>`).join('');
+ };
+ modal(id?'Edit cancellation':'Cancel one session',`<label>Date<input id=f1 type=date value="${x.exception_date||''}"></label><label>Session<select id=f2>${optionsForDate(x.exception_date||'',x.session_id)}</select></label><label>Reason / notes<textarea id=f3>${e(x.notes)}</textarea></label>`,async()=>{
+   if(!f1.value)return alert('Choose the cancellation date.');
+   if(!f2.value)return alert('Choose the session to cancel.');
+   let pay={programme_id:programmeId,session_id:f2.value,exception_date:f1.value,exception_type:'cancelled',notes:f3.value||null},q=id?sb.from('recurring_programme_session_exceptions').update(pay).eq('id',id):sb.from('recurring_programme_session_exceptions').insert(pay);let{error}=await q;if(error)return alert(error.message);closeM();load()
+ });
+ setTimeout(()=>{if($('f1'))$('f1').onchange=()=>{let selected=$('f2')?.value||'';$('f2').innerHTML=optionsForDate($('f1').value,selected)}},0);
+};
