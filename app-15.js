@@ -88,7 +88,11 @@
         const dynamic=document.createElement('script');dynamic.src='app-19.js';
         dynamic.onload=()=>{
           const billing=document.createElement('script');billing.src='app-20.js';
-          billing.onload=()=>{const recurringGuard=document.createElement('script');recurringGuard.src='app-21.js';document.body.appendChild(recurringGuard)};
+          billing.onload=()=>{
+            const recurringGuard=document.createElement('script');recurringGuard.src='app-21.js';
+            recurringGuard.onload=()=>{const reveal=document.createElement('script');reveal.src='app-22.js';document.body.appendChild(reveal)};
+            document.body.appendChild(recurringGuard)
+          };
           document.body.appendChild(billing)
         };
         document.body.appendChild(dynamic)
