@@ -24,12 +24,12 @@ st.textContent=`
 .billing-statement-modal .bill-statement-head b{font-size:18px}
 .billing-statement-modal table{width:100%;table-layout:auto;border-collapse:collapse;font-size:13px}
 .billing-statement-modal thead th{background:#f5f8fa;color:#344654;font-size:12px;text-transform:uppercase;letter-spacing:.025em;padding:10px 9px;border-bottom:2px solid #dce4e9;text-align:left}
-.billing-statement-modal tbody td{padding:13px 9px;border-bottom:1px solid #e7ecef;vertical-align:middle;line-height:1.35}
+.billing-statement-modal tbody td{padding:15px 9px;border-bottom:1px solid #e7ecef;vertical-align:top;line-height:1.45}
 .billing-statement-modal tbody tr:hover{background:#fafcfd}
 .billing-statement-modal th:nth-child(1),.billing-statement-modal td:nth-child(1){width:122px;white-space:nowrap}
-.billing-statement-modal th:nth-child(2),.billing-statement-modal td:nth-child(2){min-width:250px}
-.billing-statement-modal td:nth-child(2)>b{display:block;line-height:1.25;margin:0 0 4px;font-size:13px}
-.billing-statement-modal td:nth-child(2)>.muted{display:block;clear:both;margin:0;color:#6f7f8a;font-size:12px;line-height:1.35;white-space:nowrap}
+.billing-statement-modal th:nth-child(2),.billing-statement-modal td:nth-child(2){min-width:260px;padding-top:13px;padding-bottom:13px}
+.billing-statement-modal td:nth-child(2)>b{display:block;line-height:1.3;margin:0 0 7px;font-size:13px}
+.billing-statement-modal td:nth-child(2)>.muted{display:block;clear:both;margin:0;padding:0;color:#6f7f8a;font-size:12px;line-height:1.5;white-space:nowrap}
 .billing-statement-modal th:nth-child(3),.billing-statement-modal td:nth-child(3){width:72px;text-align:right;white-space:nowrap}
 .billing-statement-modal th:nth-child(4),.billing-statement-modal td:nth-child(4){width:100px;text-align:right;white-space:nowrap}
 .billing-statement-modal th:nth-child(5),.billing-statement-modal td:nth-child(5),
@@ -42,7 +42,7 @@ st.textContent=`
 @media(max-width:760px){
  .billing-statement-modal>div{width:calc(100vw - 24px);padding:18px 16px}
  .billing-statement-modal #mf{overflow-x:auto}
- .billing-statement-modal table{min-width:840px}
+ .billing-statement-modal table{min-width:850px}
 }
 `;
 document.head.appendChild(st);
