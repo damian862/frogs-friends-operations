@@ -80,6 +80,10 @@
 (function(){
   const css=document.createElement('link');css.rel='stylesheet';css.href='admin-access.css';document.head.appendChild(css);
   const s=document.createElement('script');s.src='app-16.js';
-  s.onload=()=>{const fix=document.createElement('script');fix.src='app-17.js';document.body.appendChild(fix)};
+  s.onload=()=>{
+    const fix=document.createElement('script');fix.src='app-17.js';
+    fix.onload=()=>{const staffing=document.createElement('script');staffing.src='app-18.js';document.body.appendChild(staffing)};
+    document.body.appendChild(fix)
+  };
   document.body.appendChild(s);
 })();
