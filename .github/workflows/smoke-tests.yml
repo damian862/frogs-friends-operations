@@ -1,0 +1,20 @@
+name: Smoke tests
+
+on:
+  push:
+    branches:
+      - booking-breaks-preview
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  shared-utils:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Run shared utility tests
+        run: node tests/shared-utils.test.js
