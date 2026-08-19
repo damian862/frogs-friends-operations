@@ -86,7 +86,11 @@
       const staffing=document.createElement('script');staffing.src='app-18.js';
       staffing.onload=()=>{
         const dynamic=document.createElement('script');dynamic.src='app-19.js';
-        dynamic.onload=()=>{const billing=document.createElement('script');billing.src='app-20.js';document.body.appendChild(billing)};
+        dynamic.onload=()=>{
+          const billing=document.createElement('script');billing.src='app-20.js';
+          billing.onload=()=>{const recurringGuard=document.createElement('script');recurringGuard.src='app-21.js';document.body.appendChild(recurringGuard)};
+          document.body.appendChild(billing)
+        };
         document.body.appendChild(dynamic)
       };
       document.body.appendChild(staffing)
