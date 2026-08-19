@@ -90,7 +90,11 @@
           const billing=document.createElement('script');billing.src='app-20.js';
           billing.onload=()=>{
             const recurringGuard=document.createElement('script');recurringGuard.src='app-21.js';
-            recurringGuard.onload=()=>{const reveal=document.createElement('script');reveal.src='app-22.js';document.body.appendChild(reveal)};
+            recurringGuard.onload=()=>{
+              const reveal=document.createElement('script');reveal.src='app-22.js';
+              reveal.onload=()=>{const finalReveal=document.createElement('script');finalReveal.src='app-23.js';document.body.appendChild(finalReveal)};
+              document.body.appendChild(reveal)
+            };
             document.body.appendChild(recurringGuard)
           };
           document.body.appendChild(billing)
