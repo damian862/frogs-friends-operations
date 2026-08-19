@@ -1,0 +1,30 @@
+(function(){
+  function isoDate(date){
+    const y=date.getFullYear();
+    const m=String(date.getMonth()+1).padStart(2,'0');
+    const d=String(date.getDate()).padStart(2,'0');
+    return `${y}-${m}-${d}`;
+  }
+  function parseDate(value){
+    return new Date(String(value||'')+'T12:00:00');
+  }
+  function hoursBetween(start,end){
+    const a=String(start||'00:00').split(':').map(Number);
+    const b=String(end||'00:00').split(':').map(Number);
+    return Math.max(0,((b[0]*60+b[1])-(a[0]*60+a[1]))/60);
+  }
+  function money(value){
+    return '£'+Number(value||0).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});
+  }
+  function monthBounds(value){
+    const [y,m]=String(value).split('-').map(Number);
+    const from=new Date(y,m-1,1,12);
+    const to=new Date(y,m,0,12);
+    return {from:isoDate(from),to:isoDate(to),usage_month:isoDate(from)};
+  }
+  function monthLabel(value){
+    const [y,m]=String(value).split('-').map(Number);
+    return new Date(y,m-1,1,12).toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+  }
+  window.OpsUtil=Object.freeze({isoDate,parseDate,hoursBetween,money,monthBounds,monthLabel});
+})();
