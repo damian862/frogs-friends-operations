@@ -79,5 +79,7 @@
 
 (function(){
   const css=document.createElement('link');css.rel='stylesheet';css.href='admin-access.css';document.head.appendChild(css);
-  const s=document.createElement('script');s.src='app-16.js';s.defer=true;document.body.appendChild(s);
+  const s=document.createElement('script');s.src='app-16.js';
+  s.onload=()=>{const fix=document.createElement('script');fix.src='app-17.js';document.body.appendChild(fix)};
+  document.body.appendChild(s);
 })();
