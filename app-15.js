@@ -95,7 +95,11 @@
                 const finalReveal=document.createElement('script');finalReveal.src='app-23.js';
                 finalReveal.onload=()=>{
                   const calendarDefault=document.createElement('script');calendarDefault.src='app-24.js';
-                  calendarDefault.onload=()=>{const staffingManage=document.createElement('script');staffingManage.src='app-25.js';document.body.appendChild(staffingManage)};
+                  calendarDefault.onload=()=>{
+                    const staffingManage=document.createElement('script');staffingManage.src='app-25.js';
+                    staffingManage.onload=()=>{const finalFix=document.createElement('script');finalFix.src='app-26.js';document.body.appendChild(finalFix)};
+                    document.body.appendChild(staffingManage)
+                  };
                   document.body.appendChild(calendarDefault)
                 };
                 document.body.appendChild(finalReveal)
