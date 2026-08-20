@@ -97,7 +97,11 @@
                   const calendarDefault=document.createElement('script');calendarDefault.src='app-24.js';
                   calendarDefault.onload=()=>{
                     const staffingManage=document.createElement('script');staffingManage.src='app-25.js';
-                    staffingManage.onload=()=>{const finalFix=document.createElement('script');finalFix.src='app-26.js';document.body.appendChild(finalFix)};
+                    staffingManage.onload=()=>{
+                      const finalFix=document.createElement('script');finalFix.src='app-26.js';
+                      finalFix.onload=()=>{const recurringSync=document.createElement('script');recurringSync.src='app-27.js';document.body.appendChild(recurringSync)};
+                      document.body.appendChild(finalFix)
+                    };
                     document.body.appendChild(staffingManage)
                   };
                   document.body.appendChild(calendarDefault)
@@ -116,5 +120,5 @@
     };
     document.body.appendChild(fix)
   };
-  document.body.appendChild(s);
+  document.body.appendChild(s)
 })();
