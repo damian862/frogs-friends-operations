@@ -42,7 +42,7 @@
   };
 
   function activateTabVisual(tab){
-    document.querySelectorAll('.booking-tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.booking-tab[data-btab]').forEach(x=>x.classList.remove('active'));
     document.querySelector(`.booking-tab[data-btab="${tab}"]`)?.classList.add('active');
   }
 
@@ -62,6 +62,58 @@
     const original=document.getElementById('bookingTabCalendar');
     if(original){original.classList.remove('on');original.style.display='none'}
     return result;
+  };
+
+  // Final shared-calendar implementation of Manage series.
+  // The calendar card is already tagged by app-30 with its programme ID.
+  window.calendarManageRecurring=function(btn){
+    const card=btn?.closest('.cal-event');
+    const pid=card?.dataset.programmeId;
+    if(!pid){alert('This recurring session could not be matched.');return}
+    const programme=G.find(g=>String(g.id)===String(pid));
+    if(!programme){alert('This recurring booking could not be found.');return}
+
+    // Keep the shared calendar available and open the management panel beneath it.
+    ensureSharedCalendar();
+    OPEN_PROG=programme.id;
+    window.setBookingTab('recurring');
+
+    setTimeout(()=>{
+      const panel=document.getElementById('bookingTabRecurring');
+      if(panel){
+        panel.classList.add('on');
+        panel.style.display='block';
+        [...panel.children].forEach(ch=>ch.style.display='');
+      }
+      activateTabVisual('recurring');
+
+      const site=document.getElementById('rbSite');
+      const org=document.getElementById('rbOrg');
+      const search=document.getElementById('rbSearch');
+      const status=document.getElementById('rbStatus');
+      if(search)search.value='';
+      if(site&&[...site.options].some(o=>o.value===String(programme.site_id||'')))site.value=programme.site_id||'';
+      if(org){
+        const wanted=programme.hirer_id||'internal';
+        if([...org.options].some(o=>o.value===String(wanted)))org.value=wanted;
+      }
+      if(status)status.value='active';
+
+      OPEN_PROG=programme.id;
+      if(typeof window.renderRecurringBookings==='function')window.renderRecurringBookings();
+
+      setTimeout(()=>{
+        // The render may recreate the card; find it by its Manage button programme id.
+        const cards=[...document.querySelectorAll('#rProg .rb-item')];
+        const target=cards.find(el=>{
+          return [...el.querySelectorAll('button')].some(b=>(b.getAttribute('onclick')||'').includes(`'${programme.id}'`));
+        });
+        if(target){
+          target.querySelectorAll(':scope > *').forEach(ch=>ch.style.display='');
+          target.scrollIntoView({behavior:'smooth',block:'center'});
+        }
+      },80);
+    },40);
   };
 
   const priorRender=window.render;
