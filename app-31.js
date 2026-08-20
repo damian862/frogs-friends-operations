@@ -35,54 +35,40 @@
     return panel;
   }
 
+  const PANEL_MAP={recurring:'bookingTabRecurring',single:'bookingTabSingle',school:'bookingTabSchool',income:'bookingTabIncome'};
+  function enforceSection(tab){
+    const id=PANEL_MAP[tab];if(!id)return;
+    showOnlyPanel(id);activateTabVisual(tab);
+    if(tab==='recurring'&&typeof window.renderRecurringBookings==='function')window.renderRecurringBookings();
+    if(tab==='single'&&typeof window.renderSingleBookings==='function')window.renderSingleBookings();
+    if(tab==='school'&&typeof window.renderSchoolEvents==='function')window.renderSchoolEvents();
+    if(tab==='income'&&typeof window.renderPoolUsage==='function')window.renderPoolUsage();
+  }
+
   const priorSet=window.setBookingTab;
   window.setBookingTab=function(tab){
     ensureSharedCalendar();
     if(tab==='calendar'){
-      document.querySelectorAll('.booking-panel').forEach(x=>{x.classList.remove('on');x.style.display='none'});activateTabVisual('calendar');calendarCollapsed=false;applyCalendarCollapse();if(typeof window.renderBookingCalendar==='function')setTimeout(()=>window.renderBookingCalendar(),0);return;
+      document.querySelectorAll('.booking-panel').forEach(x=>{x.classList.remove('on');x.style.display='none'});
+      activateTabVisual('calendar');calendarCollapsed=false;applyCalendarCollapse();
+      if(typeof window.renderBookingCalendar==='function')setTimeout(()=>window.renderBookingCalendar(),0);
+      return;
     }
-    const result=priorSet?priorSet(tab):undefined;ensureSharedCalendar();const original=document.getElementById('bookingTabCalendar');if(original){original.classList.remove('on');original.style.display='none'}return result;
+    if(priorSet)priorSet(tab);
+    ensureSharedCalendar();
+    enforceSection(tab);
+    // Older wrappers can run delayed DOM changes after the click. Reassert once.
+    setTimeout(()=>enforceSection(tab),40);
   };
 
-  function directManageSeries(card){
-    const pid=card?.dataset.programmeId;
-    if(!pid){alert('This recurring session could not be matched.');return}
-    const programme=G.find(g=>String(g.id)===String(pid));
-    if(!programme){alert('This recurring booking could not be found.');return}
-
-    ensureSharedCalendar();
-    OPEN_PROG=programme.id;
-    showOnlyPanel('bookingTabRecurring');
-    activateTabVisual('recurring');
-
-    const site=document.getElementById('rbSite'),org=document.getElementById('rbOrg'),search=document.getElementById('rbSearch'),status=document.getElementById('rbStatus');
-    if(search)search.value='';
-    if(site&&[...site.options].some(o=>String(o.value)===String(programme.site_id||'')))site.value=programme.site_id||'';
-    if(org){const wanted=programme.hirer_id||'internal';if([...org.options].some(o=>String(o.value)===String(wanted)))org.value=wanted}
-    if(status)status.value='active';
-
-    if(typeof window.renderRecurringBookings==='function')window.renderRecurringBookings();
-    OPEN_PROG=programme.id;
-
-    // Some older render wrappers can re-collapse/re-hide the panel. Reassert the
-    // intended state after all synchronous and delayed render work has completed.
-    [20,100,250].forEach(delay=>setTimeout(()=>{
-      showOnlyPanel('bookingTabRecurring');activateTabVisual('recurring');OPEN_PROG=programme.id;
-      if(typeof window.renderRecurringBookings==='function'&&delay===20)window.renderRecurringBookings();
-      const cards=[...document.querySelectorAll('#rProg .rb-item')];
-      const target=cards.find(el=>[...el.querySelectorAll('button')].some(b=>(b.getAttribute('onclick')||'').includes(String(programme.id))));
-      if(target){target.style.display='';target.querySelectorAll(':scope > *').forEach(ch=>ch.style.display='');if(delay===250)target.scrollIntoView({behavior:'smooth',block:'start'})}
-    },delay));
-  }
-
-  window.calendarManageRecurring=function(btn){directManageSeries(btn?.closest('.cal-event'))};
-  // Capture the click before older inline/wrapper handlers can interfere.
+  // Capture booking-tab clicks so every section reliably opens beneath the shared calendar.
   document.addEventListener('click',ev=>{
-    const manage=ev.target.closest('.cal-event-actions button');
-    if(manage&&manage.textContent.trim()==='Manage series'){
-      ev.preventDefault();ev.stopImmediatePropagation();directManageSeries(manage.closest('.cal-event'));return;
-    }
-    const tab=ev.target.closest('.booking-tab[data-btab]');if(tab)setTimeout(ensureSharedCalendar,0);
+    const tab=ev.target.closest('.booking-tab[data-btab]');
+    if(!tab)return;
+    const name=tab.dataset.btab;
+    if(name&&name!=='calendar'){
+      ev.preventDefault();ev.stopImmediatePropagation();window.setBookingTab(name);
+    }else setTimeout(ensureSharedCalendar,0);
   },true);
 
   const priorRender=window.render;
