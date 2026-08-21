@@ -4,6 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Frogs & Friends Operations</title>
+<script>
+(function(){
+  const production='https://frogs-friends-operations.vercel.app';
+  const onPreview=location.hostname.endsWith('.vercel.app')&&location.hostname!=='frogs-friends-operations.vercel.app';
+  const params=new URLSearchParams(location.search);
+  const inviteFlow=params.get('invite')==='1'||/(?:^|[&#])type=invite(?:&|$)/.test(location.hash)||/(?:^|[&#])access_token=/.test(location.hash);
+  if(onPreview&&inviteFlow)location.replace(production+location.pathname+location.search+location.hash);
+})();
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="billing-statement.css">
