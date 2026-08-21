@@ -76,6 +76,16 @@
     return roles.map(r=>`<option value="${r}" ${r===value?'selected':''}>${e(roleName(r))}</option>`).join('');
   }
   function siteCheckboxes(selected=[]){return S.map(s=>`<label class="invite-site-option"><input type="checkbox" class="ua-site" value="${s.id}" ${selected.includes(s.id)?'checked':''}> ${e(s.name)}</label>`).join('')}
+  async function inviteErrorMessage(error,data){
+    if(data?.error||data?.message)return data.error||data.message;
+    try{
+      const body=await error?.context?.json?.();
+      if(body?.error||body?.message)return body.error||body.message;
+    }catch(_error){}
+    const message=String(error?.message||'');
+    if(/fetch|network|relay/i.test(message))return 'The invitation service could not be reached. Please check your connection and try again.';
+    return 'The invitation could not be sent. Please try again or contact your system administrator.';
+  }
   window.uaRoleChanged=function(){let role=$('uaRole')?.value||'operational_viewer';$('uaRoleHelp').textContent=roleHelp[role]||'';let all=role==='operations_admin';document.querySelectorAll('.ua-site').forEach(x=>{if(all)x.checked=true});updateHomeSiteOptions()};
   window.updateHomeSiteOptions=function(){let home=$('uaHome');if(!home)return;let selected=[...document.querySelectorAll('.ua-site:checked')].map(x=>x.value),old=home.value;home.innerHTML='<option value="">No home school</option>'+selected.map(id=>`<option value="${id}">${e(siteName(id))}</option>`).join('');if(selected.includes(old))home.value=old;else if(selected.length)home.value=selected[0]};
 
@@ -83,10 +93,18 @@
     if(!isAdmin())return;
     modal('Invite user',`<label>Full name<input id=uaName placeholder="e.g. Jane Smith"></label><label>Email<input id=uaEmail type=email placeholder="name@school.org"></label><label>Role<select id=uaRole onchange="uaRoleChanged()">${roleOptions('operational_viewer')}</select></label><label>Home school<select id=uaHome></select></label><div class="invite-sites"><span>School access</span>${siteCheckboxes([])}</div><div id=uaRoleHelp class="access-role-help">${e(roleHelp.operational_viewer)}</div>`,async()=>{
       const sites=[...document.querySelectorAll('.ua-site:checked')].map(x=>x.value),role=uaRole.value;
-      if(!uaName.value.trim())return alert('Enter the user’s name.');if(!uaEmail.value.trim())return alert('Enter the user’s email address.');if(role!=='operations_admin'&&!sites.length)return alert('Select at least one school for this user.');
-      $('ms').disabled=true;$('ms').textContent='Sending invite…';
-      const {data,error}=await sb.functions.invoke('invite-operations-user',{body:{full_name:uaName.value.trim(),email:uaEmail.value.trim(),role,site_ids:sites,home_site_id:uaHome.value||sites[0]||null}});
-      $('ms').disabled=false;$('ms').textContent='Save';if(error||data?.error)return alert(data?.error||error.message);closeM();await loadUserAccess();alert('Invitation sent to '+uaEmail.value.trim()+'.');
+      const email=uaEmail.value.trim();
+      if(!uaName.value.trim())return alert('Enter the user’s name.');if(!email)return alert('Enter the user’s email address.');if(!uaEmail.checkValidity())return alert('Please enter a valid email address.');if(role!=='operations_admin'&&!sites.length)return alert('Select at least one school for this user.');
+      const save=$('ms');save.disabled=true;save.textContent='Sending invite…';
+      try{
+        const {data,error}=await sb.functions.invoke('invite-operations-user',{body:{full_name:uaName.value.trim(),email,role,site_ids:sites,home_site_id:uaHome.value||sites[0]||null}});
+        if(error||data?.error)return alert(await inviteErrorMessage(error,data));
+        closeM();await loadUserAccess();alert('Invitation sent to '+email+'.');
+      }catch(error){
+        alert(await inviteErrorMessage(error));
+      }finally{
+        if(document.body.contains(save)){save.disabled=false;save.textContent='Save'}
+      }
     });
     document.querySelectorAll('.ua-site').forEach(x=>x.addEventListener('change',updateHomeSiteOptions));updateHomeSiteOptions();
   };
