@@ -1,7 +1,25 @@
 (function(){
   const prior=window.editBookingStaffing;
   if(!prior)return;
+  function currentBookingTab(){
+    return document.querySelector('.booking-tab.active[data-btab]')?.dataset.btab||
+      (document.getElementById('bookingTabIncome')?.classList.contains('on')?'income':'single');
+  }
+  function captureIncomeFilters(){
+    const panel=document.getElementById('bookingTabIncome');if(!panel)return {};
+    const values={};panel.querySelectorAll('select[id],input[id]').forEach(el=>values[el.id]=el.value);return values;
+  }
+  function restoreIncomeFilters(values){
+    Object.entries(values||{}).forEach(([id,value])=>{const el=document.getElementById(id);if(el)el.value=value});
+  }
+  function scrollToStaffing(){
+    const candidates=[...document.querySelectorAll('h1,h2,h3,strong,b')];
+    const heading=candidates.find(el=>(el.textContent||'').includes('Staffing Services'));
+    heading?.scrollIntoView({block:'start'});
+  }
   window.editBookingStaffing=async function(bookingId,entryId){
+    const sourceTab=currentBookingTab();
+    const incomeFilters=sourceTab==='income'?captureIncomeFilters():{};
     const out=await prior.apply(this,arguments);
     const save=document.getElementById('ms');
     if(!save)return out;
@@ -17,7 +35,9 @@
       if(q.error)return alert(q.error.message);
       closeM();
       await load();
-      if(typeof window.setBookingTab==='function')window.setBookingTab('single');
+      const destination=sourceTab==='income'?'income':'single';
+      if(typeof window.setBookingTab==='function')window.setBookingTab(destination);
+      if(destination==='income')setTimeout(async()=>{restoreIncomeFilters(incomeFilters);if(typeof window.renderLifeguardServices==='function')await window.renderLifeguardServices();setTimeout(scrollToStaffing,20)},80);
       alert('Staffing saved successfully.');
     };
     return out;
