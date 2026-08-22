@@ -24,4 +24,20 @@
     if(typeof window.editBookingStaffing!=='function')return alert('Staffing form is still loading. Please refresh the page and try again.');
     window.editBookingStaffing(id);
   },true);
+
+  const priorStaffingRender=window.renderLifeguardServices;
+  if(typeof priorStaffingRender==='function'&&window.OpsUtil?.createBurstDeduper){
+    const dedupedStaffingRender=OpsUtil.createBurstDeduper(
+      function(){return priorStaffingRender.apply(this,arguments)},
+      {
+        windowMs:250,
+        key:()=>[
+          document.getElementById('lgMonth')?.value||'',
+          document.getElementById('lgSite')?.value||'',
+          document.getElementById('lgCustomer')?.value||''
+        ].join('|')
+      }
+    );
+    window.renderLifeguardServices=function(){return dedupedStaffingRender.apply(this,arguments)};
+  }
 })();
