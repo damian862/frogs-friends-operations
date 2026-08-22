@@ -7,14 +7,17 @@ on:
   pull_request:
     branches:
       - main
+      - perf/dedupe-income-staffing-reads
 
 jobs:
-  shared-utils:
+  runtime:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-      - name: Run shared utility tests
-        run: node tests/shared-utils.test.js
+          node-version: '24'
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Run runtime tests
+        run: npm test

@@ -1,0 +1,11 @@
+{
+  "name": "frogs-friends-operations",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/build-bundles.js",
+    "test": "node tests/shared-utils.test.js && node tests/build-bundles.test.js"
+  },
+  "engines": {
+    "node": "24.x"
+  }
+}
