@@ -40,5 +40,40 @@
 </section><section id="hirers" class="view"><h1>Hirers</h1><button class="p" onclick="editHirer()">+ Add hirer</button><div class="card"><table><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>VAT</th><th></th></tr></thead><tbody id="rHirers"></tbody></table></div></section>
 <section id="staff" class="view"><h1>Staff Register</h1><button class="p" onclick="editStaff()">+ Add staff</button><div class="card"><table><thead><tr><th>Name</th><th>Role</th><th>Employment</th><th>Email</th><th></th></tr></thead><tbody id="rStaff"></tbody></table></div></section></main></div>
 <div id="modal" class="modal"><div><h2 id="mt"></h2><div id="mf" class="cols"></div><button id="ms" class="p">Save</button> <button class="s" onclick="closeM()">Cancel</button></div></div>
-<script src="core.js"></script><script src="bookings.js"></script><script src="staffing.js"></script><script src="access.js"></script><script src="calendar.js"></script><script src="billing.js"></script><script src="viewer-access.js"></script></body>
+<script src="core.js"></script><script src="bookings.js"></script><script src="staffing.js"></script><script src="access.js"></script><script src="calendar.js"></script><script src="billing.js"></script><script src="viewer-access.js"></script>
+<script>
+(async function handleInvitePasswordSetup(){
+  const params=new URLSearchParams(location.search);
+  const hash=new URLSearchParams(location.hash.replace(/^#/,''));
+  const invite=params.get('invite')==='1'||hash.get('type')==='invite'||hash.has('access_token');
+  if(!invite)return;
+  const auth=document.getElementById('auth');
+  const box=auth?.querySelector('.box');
+  if(!box)return;
+  box.innerHTML='<h2>🐸 Frogs & Friends Operations</h2><h3>Create your password</h3><p class="muted">Set a password to finish activating your account.</p><label>New password<input id="invitePassword" type="password" autocomplete="new-password" minlength="8"></label><label>Confirm password<input id="invitePasswordConfirm" type="password" autocomplete="new-password" minlength="8"></label><button id="inviteSave" class="p">Create password</button><div id="inviteMsg"></div>';
+  const msg=(text,bad=false)=>{document.getElementById('inviteMsg').innerHTML='<div class="'+(bad?'err':'note')+'">'+e(text)+'</div>';};
+  try{
+    const access_token=hash.get('access_token');
+    const refresh_token=hash.get('refresh_token');
+    if(access_token&&refresh_token){
+      const {error}=await sb.auth.setSession({access_token,refresh_token});
+      if(error)throw error;
+    }
+    const {data:{session}}=await sb.auth.getSession();
+    if(!session)throw new Error('This invitation link is invalid or has expired. Please ask an administrator to send a new invitation.');
+    document.getElementById('inviteSave').onclick=async()=>{
+      const password=document.getElementById('invitePassword').value;
+      const confirmPassword=document.getElementById('invitePasswordConfirm').value;
+      if(password.length<8)return msg('Please use at least 8 characters.',true);
+      if(password!==confirmPassword)return msg('The passwords do not match.',true);
+      msg('Saving password…');
+      const {data,error}=await sb.auth.updateUser({password});
+      if(error)return msg(error.message,true);
+      history.replaceState(null,'',location.pathname);
+      await enter(data.user||session.user);
+    };
+  }catch(err){msg(err.message||String(err),true);}
+})();
+</script>
+</body>
 </html>
