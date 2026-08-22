@@ -32,4 +32,6 @@ as $$
 $$;
 
 revoke all on function public.operational_viewer_booking_organisations() from public;
+revoke all on function public.operational_viewer_booking_organisations() from anon;
+revoke all on function public.operational_viewer_booking_organisations() from authenticated;
 grant execute on function public.operational_viewer_booking_organisations() to authenticated;
