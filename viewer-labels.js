@@ -1,11 +1,14 @@
 (function () {
   const restrictionText = "Your account is restricted to this school's pool operations.";
+  const profile = () => (typeof P !== 'undefined' ? P : window.P);
+  const sites = () => (typeof S !== 'undefined' ? S : window.S);
   function isOperationalViewer() {
-    return String(window.P?.role || window.P?.role || '').toLowerCase() === 'operational_viewer';
+    return String(profile()?.role || '').toLowerCase() === 'operational_viewer';
   }
   function assignedSiteName() {
-    const homeId = window.P?.home_site_id;
-    const fromData = Array.isArray(window.S) ? window.S.find(s => s.id === homeId)?.name : '';
+    const homeId = profile()?.home_site_id;
+    const list = sites();
+    const fromData = Array.isArray(list) ? list.find(s => s.id === homeId)?.name : '';
     const fromSelector = document.getElementById('calSite')?.selectedOptions?.[0]?.textContent || '';
     return fromData || fromSelector || 'Your school';
   }
@@ -19,8 +22,10 @@
     const target = matches[0];
     if (!target) return;
     const site = assignedSiteName();
+    if (target.classList.contains('viewer-restriction-copy') && target.querySelector('b')?.textContent === site) return;
     target.classList.add('viewer-restriction-copy');
-    target.innerHTML = `<b>${typeof e === 'function' ? e(site) : site}</b><span>${restrictionText}</span>`;
+    const safeSite = typeof e === 'function' ? e(site) : site;
+    target.innerHTML = `<b>${safeSite}</b><span>${restrictionText}</span>`;
   }
   function tidyOrganisationLabel() {
     if (!isOperationalViewer()) return;
@@ -37,8 +42,17 @@
   const style = document.createElement('style');
   style.textContent = '.viewer-restriction-copy{display:block;line-height:1.45;margin:8px 0 14px}.viewer-restriction-copy b,.viewer-restriction-copy span{display:block}.viewer-restriction-copy span{color:#526575;margin-top:2px}';
   document.head.appendChild(style);
-  window.addEventListener('load', () => setTimeout(apply, 0));
-  const observer = new MutationObserver(() => requestAnimationFrame(apply));
+  let queued = false;
+  const schedule = () => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => {
+      queued = false;
+      apply();
+    });
+  };
+  window.addEventListener('load', schedule);
+  const observer = new MutationObserver(schedule);
   observer.observe(document.body, {childList:true,subtree:true});
-  setTimeout(apply, 0);
+  schedule();
 })();
