@@ -26,7 +26,29 @@
     const [y,m]=String(value).split('-').map(Number);
     return new Date(y,m-1,1,12).toLocaleDateString('en-GB',{month:'long',year:'numeric'});
   }
-  const api=Object.freeze({isoDate,parseDate,hoursBetween,money,monthBounds,monthLabel});
+  function createBurstDeduper(fn,options={}){
+    const windowMs=Math.max(0,Number(options.windowMs??250));
+    const keyFn=typeof options.key==='function'?options.key:()=>'';
+    const active=new Map(),recent=new Map();
+    async function run(...args){
+      const key=String(keyFn(...args));
+      if(active.has(key))return active.get(key);
+      const cached=recent.get(key);
+      if(cached&&Date.now()-cached.at<windowMs)return cached.value;
+      const promise=Promise.resolve().then(()=>fn(...args));
+      active.set(key,promise);
+      try{
+        const value=await promise;
+        recent.set(key,{at:Date.now(),value});
+        return value;
+      }finally{
+        if(active.get(key)===promise)active.delete(key);
+      }
+    }
+    run.invalidate=key=>{if(key===undefined)recent.clear();else recent.delete(String(key))};
+    return run;
+  }
+  const api=Object.freeze({isoDate,parseDate,hoursBetween,money,monthBounds,monthLabel,createBurstDeduper});
   if(typeof window!=='undefined')window.OpsUtil=api;
   if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })();
