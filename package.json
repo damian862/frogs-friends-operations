@@ -5,10 +5,6 @@
     "build": "node scripts/build-bundles.js",
     "test": "node tests/shared-utils.test.js && node tests/build-bundles.test.js"
   },
-  "devDependencies": {
-    "acorn": "^8.15.0",
-    "astring": "^1.9.0"
-  },
   "engines": {
     "node": "24.x"
   }
