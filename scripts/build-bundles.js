@@ -17,7 +17,7 @@ const bundles=[
 const allSources=bundles.flatMap(([,files])=>files);
 const dynamicLoaderMarker="(function(){const css=document.createElement('link');css.rel='stylesheet';css.href='admin-access.css';";
 
-function readSource(file){
+function sourceText(file){
   const full=path.join(root,file);
   if(!fs.existsSync(full))throw new Error(`Missing runtime source: ${file}`);
   let source=fs.readFileSync(full,'utf8');
@@ -26,10 +26,30 @@ function readSource(file){
     if(marker<0)throw new Error('app-15.js dynamic loader marker changed; refusing to build until the loader is reviewed.');
     source=source.slice(0,marker).trimEnd();
   }
-  return `/* source: ${file} */\n${source}\n`;
+  return source;
 }
 
+function readSource(file){return `/* source: ${file} */\n${sourceText(file)}\n`;}
 function copyFile(name){fs.copyFileSync(path.join(root,name),path.join(dist,name));}
+
+function wrapperAudit(){
+  const captures=[];
+  const assignments=[];
+  for(const file of allSources){
+    const source=sourceText(file);
+    for(const match of source.matchAll(/(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:window\.)?([A-Za-z_$][\w$]*)\s*;/g)){
+      const alias=match[1],target=match[2];
+      if(/^(old|base|prior|previous|original)/i.test(alias))captures.push({file,alias,target});
+    }
+    for(const match of source.matchAll(/(?:window\.)?([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?function\b/g))assignments.push({file,target:match[1],kind:'function'});
+    for(const match of source.matchAll(/window\.([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?\([^)]*\)\s*=>/g))assignments.push({file,target:match[1],kind:'arrow'});
+  }
+  const byTarget={};
+  for(const capture of captures)(byTarget[capture.target]??={captures:[],assignments:[]}).captures.push(capture);
+  for(const assignment of assignments)(byTarget[assignment.target]??={captures:[],assignments:[]}).assignments.push(assignment);
+  const chains=Object.fromEntries(Object.entries(byTarget).filter(([,v])=>v.captures.length||v.assignments.length>1));
+  return {captureCount:captures.length,assignmentCount:assignments.length,chains,captures,assignments};
+}
 
 fs.rmSync(dist,{recursive:true,force:true});
 fs.mkdirSync(dist,{recursive:true});
@@ -59,4 +79,5 @@ const manifest={
   bundles:Object.fromEntries(bundles)
 };
 fs.writeFileSync(path.join(dist,'runtime-manifest.json'),JSON.stringify(manifest,null,2)+'\n');
+fs.writeFileSync(path.join(dist,'runtime-wrapper-report.json'),JSON.stringify(wrapperAudit(),null,2)+'\n');
 console.log(`Built ${bundles.length} ordered bundles from ${allSources.length} runtime sources.`);
