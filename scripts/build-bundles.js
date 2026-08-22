@@ -11,6 +11,8 @@ const oldPrice=`<strong>£${'${Number(r.rate).toFixed(2)}'}/hr</strong><div clas
 const newPrice=`<strong>£${'${total.toFixed(2)}'}</strong><div class="muted">${'${hrs.toFixed(hrs % 1 ? 2 : 0)}'} hour${"${hrs === 1 ? '' : 's'}"} per session · ${"${r.vat_applicable ? 'VAT applies' : 'No VAT'}"}</div>`;
 if(core.split(oldPrice).length!==2)throw new Error('Recurring session price template changed; review display normalisation.');
 core=core.replace(oldPrice,newPrice);fs.writeFileSync(corePath,core);
+const calendarPath=path.join(dist,'calendar.js');
+fs.appendFileSync(calendarPath,'\n\n'+fs.readFileSync(path.join(root,'scripts/calendar-context.js'),'utf8'));
 for(const entry of fs.readdirSync(root,{withFileTypes:true}))if(entry.isFile()&&/.(css|png|jpe?g|svg|ico|webp|woff2?)$/i.test(entry.name))fs.copyFileSync(path.join(root,entry.name),path.join(dist,entry.name));
 fs.writeFileSync(path.join(dist,'runtime-manifest.json'),JSON.stringify({bundleCount:runtime.length,sourceCount:runtime.length,bundles:runtime},null,2)+'\n');
 console.log('Built 7 maintained runtime modules.');
