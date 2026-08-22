@@ -57,10 +57,13 @@
     if(t && t!=='bank_holiday' && t!=='other') return name||t.replaceAll('_',' ');
     return '';
   }
+  function periodsForSite(siteId){
+    const yearIds=new Set((Y||[]).filter(y=>y.site_id===siteId).map(y=>y.id));
+    return (D||[]).filter(p=>yearIds.has(p.academic_year_id)&&p.starts_on&&p.ends_on);
+  }
   function contextForSite(siteId,date){
-    const year=(Y||[]).find(y=>y.site_id===siteId&&y.starts_on<=date&&y.ends_on>=date);
-    if(!year)return '';
-    const periods=(D||[]).filter(p=>p.academic_year_id===year.id&&p.starts_on&&p.ends_on);
+    const periods=periodsForSite(siteId);
+    if(!periods.length)return '';
     const explicit=periods.filter(p=>p.starts_on<=date&&p.ends_on>=date&&String(p.period_type||'')!=='bank_holiday').sort((a,b)=>{
       const rank=x=>String(x.period_type||'')==='half_term'?0:String(x.period_type||'')==='term'?5:2;
       return rank(a)-rank(b);
@@ -69,7 +72,13 @@
     const terms=periods.filter(p=>String(p.period_type||'')==='term').sort((a,b)=>a.starts_on.localeCompare(b.starts_on));
     const prev=[...terms].reverse().find(t=>t.ends_on<date),next=terms.find(t=>t.starts_on>date);
     if(prev&&next){
-      const k=termKind(prev); if(k==='autumn')return 'Christmas Break'; if(k==='spring')return 'Easter Break'; if(k==='summer')return 'Summer Break';
+      const before=termKind(prev),after=termKind(next);
+      if(before==='autumn'&&after==='spring')return 'Christmas Break';
+      if(before==='spring'&&after==='summer')return 'Easter Break';
+      if(before==='summer'&&after==='autumn')return 'Summer Break';
+      if(before==='autumn')return 'Christmas Break';
+      if(before==='spring')return 'Easter Break';
+      if(before==='summer')return 'Summer Break';
     }
     if(prev&&termKind(prev)==='summer')return 'Summer Break';
     if(!prev&&next&&termKind(next)==='autumn')return 'Summer Break';
