@@ -57,4 +57,20 @@
   const observer=new MutationObserver(showViewerCalendar);
   observer.observe(document.body,{childList:true,subtree:true});
   showViewerCalendar();
+
+  const originalStaffingRender=window.renderLifeguardServices;
+  if(typeof originalStaffingRender==='function'&&window.OpsUtil?.createBurstDeduper){
+    const dedupedStaffingRender=OpsUtil.createBurstDeduper(
+      (...args)=>originalStaffingRender(...args),
+      {
+        windowMs:250,
+        key:()=>[
+          document.getElementById('lgMonth')?.value||'',
+          document.getElementById('lgSite')?.value||'',
+          document.getElementById('lgCustomer')?.value||''
+        ].join('|')
+      }
+    );
+    window.renderLifeguardServices=(...args)=>dedupedStaffingRender(...args);
+  }
 })();
