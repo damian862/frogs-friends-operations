@@ -48,6 +48,13 @@
     document.head.appendChild(script);
   }
 
+  if (!document.querySelector('script[data-dashboard-lifecycle]')) {
+    const script = document.createElement('script');
+    script.src = 'dashboard-lifecycle.js?v=20260824-1';
+    script.dataset.dashboardLifecycle = '1';
+    document.head.appendChild(script);
+  }
+
   attachObserver();
   relabelOrganisationFilter();
 })();
