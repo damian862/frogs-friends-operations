@@ -1,8 +1,7 @@
 (function () {
-  const profile = () => (typeof P !== 'undefined' ? P : window.P);
-
   function isOperationalViewer() {
-    return String(profile()?.role || '').toLowerCase() === 'operational_viewer';
+    const roleText = (document.getElementById('role')?.textContent || '').trim().toLowerCase();
+    return document.body.classList.contains('operational-viewer') || roleText === 'operational viewer';
   }
 
   function relabelOrganisationFilter() {
@@ -15,34 +14,33 @@
     }
   }
 
-  function schedule() {
-    requestAnimationFrame(relabelOrganisationFilter);
+  let observer;
+  function attachObserver() {
+    const select = document.getElementById('calOrg');
+    if (!select) return;
+    if (observer) observer.disconnect();
+    observer = new MutationObserver(relabelOrganisationFilter);
+    observer.observe(select, {childList: true, subtree: true});
+    relabelOrganisationFilter();
   }
 
-  function wrapAfter(name) {
-    const original = window[name];
-    if (typeof original !== 'function' || original.__viewerOrgLabelWrapped) return;
-    function wrapped() {
-      const result = original.apply(this, arguments);
-      if (result && typeof result.then === 'function') {
-        return result.finally(schedule);
-      }
-      schedule();
-      return result;
-    }
-    wrapped.__viewerOrgLabelWrapped = true;
-    window[name] = wrapped;
-  }
-
-  ['renderBookingCalendar', 'render', 'enter', 'setBookingTab', 'calendarAnchorChanged', 'setCalendarMode'].forEach(wrapAfter);
-
-  const select = document.getElementById('calOrg');
-  if (select) {
-    new MutationObserver(schedule).observe(select, {childList: true, subtree: true});
-  }
-  window.addEventListener('load', schedule);
-  document.addEventListener('change', event => {
-    if (['calSite', 'calOrg', 'calTerm'].includes(event.target?.id)) schedule();
+  const bodyObserver = new MutationObserver(() => {
+    attachObserver();
+    relabelOrganisationFilter();
   });
-  schedule();
+  bodyObserver.observe(document.body, {childList: true, subtree: true, attributes: true, attributeFilter: ['class']});
+
+  window.addEventListener('load', () => {
+    attachObserver();
+    relabelOrganisationFilter();
+    setTimeout(relabelOrganisationFilter, 100);
+    setTimeout(relabelOrganisationFilter, 500);
+  });
+
+  document.addEventListener('change', event => {
+    if (['calSite', 'calOrg', 'calTerm'].includes(event.target?.id)) relabelOrganisationFilter();
+  });
+
+  attachObserver();
+  relabelOrganisationFilter();
 })();
