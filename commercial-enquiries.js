@@ -4,12 +4,27 @@
   const $id=id=>document.getElementById(id);
   const esc=value=>typeof e==='function'?e(value):String(value??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const shortTime=v=>String(v||'').slice(0,5);
-  const canManage=()=>MANAGE_ROLES.has(String(window.P?.role||P?.role||''));
-  const isViewer=()=>String(window.P?.role||P?.role||'')==='operational_viewer';
+  const currentRole=()=>String((typeof P!=='undefined'&&P?.role)||window.P?.role||'');
+  const canManage=()=>MANAGE_ROLES.has(currentRole());
+  const isViewer=()=>currentRole()==='operational_viewer';
   const activeSite=()=>typeof window.getActiveSiteId==='function'?window.getActiveSiteId():($id('calSite')?.value||'');
-  const siteName=id=>(S||[]).find(x=>x.id===id)?.name||'';
-  const hirerName=id=>(H||[]).find(x=>x.id===id)?.name||'';
+  function accessibleSites(){
+    const loaded=(typeof S!=='undefined'&&Array.isArray(S)?S:[]).filter(s=>s?.id&&s?.name);
+    if(loaded.length)return loaded;
+    const cal=$id('calSite');
+    if(!cal)return[];
+    return [...cal.options].filter(o=>o.value).map(o=>({id:o.value,name:o.textContent.trim()}));
+  }
+  const siteName=id=>accessibleSites().find(x=>x.id===id)?.name||'';
+  const hirerName=id=>(typeof H!=='undefined'?H:[]).find(x=>x.id===id)?.name||'';
   const uk=v=>{if(!v)return'';const d=new Date(v+'T12:00:00');return d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});};
+  function syncManagerControl(panel){
+    if(!panel)return;
+    const head=panel.querySelector('.commercial-head');if(!head)return;
+    let btn=head.querySelector('.commercial-add-btn');
+    if(canManage()&&!btn){btn=document.createElement('button');btn.type='button';btn.className='p commercial-add-btn';btn.textContent='+ Add enquiry';btn.onclick=()=>window.newCommercialEnquiry();head.appendChild(btn);}
+    if(!canManage()&&btn)btn.remove();
+  }
   function ensurePanel(){
     if(isViewer())return null;
     const bookings=$id('bookings');
@@ -19,19 +34,23 @@
       panel=document.createElement('section');
       panel.id='commercialEnquiries';
       panel.className='commercial-enquiries';
-      panel.innerHTML=`<div class="commercial-head"><div><h2>Commercial enquiries</h2><p>Track pool-hire opportunities, temporary holds and conversion into confirmed bookings.</p></div>${canManage()?'<button type="button" class="p" onclick="newCommercialEnquiry()">+ Add enquiry</button>':''}</div><div class="commercial-kpis" id="commercialEnquiryKpis"></div><div class="commercial-toolbar"><label>Status<select id="commercialStatus"><option value="open">Open enquiries & holds</option><option value="enquiry">Enquiries</option><option value="held">On hold</option><option value="converted">Converted</option><option value="lost">Lost</option><option value="all">All</option></select></label><label>Site<select id="commercialSite"></select></label></div><div id="commercialEnquiryList" class="commercial-list"><div class="muted">Loading enquiries…</div></div>`;
+      panel.innerHTML=`<div class="commercial-head"><div><h2>Commercial enquiries</h2><p>Track pool-hire opportunities, temporary holds and conversion into confirmed bookings.</p></div></div><div class="commercial-kpis" id="commercialEnquiryKpis"></div><div class="commercial-toolbar"><label>Status<select id="commercialStatus"><option value="open">Open enquiries & holds</option><option value="enquiry">Enquiries</option><option value="held">On hold</option><option value="converted">Converted</option><option value="lost">Lost</option><option value="all">All</option></select></label><label>Site<select id="commercialSite"></select></label></div><div id="commercialEnquiryList" class="commercial-list"><div class="muted">Loading enquiries…</div></div>`;
       const shared=$id('sharedBookingCalendar');
       if(shared)shared.insertAdjacentElement('afterend',panel);else bookings.appendChild(panel);
       $id('commercialStatus').onchange=render;
       $id('commercialSite').onchange=render;
     }
+    syncManagerControl(panel);
     return panel;
   }
   function refreshSiteOptions(){
     const sel=$id('commercialSite');if(!sel)return;
-    const current=sel.value,context=activeSite();
-    sel.innerHTML='<option value="">All accessible sites</option>'+(S||[]).map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
-    const wanted=context||current;if([...sel.options].some(o=>o.value===wanted))sel.value=wanted;
+    const sites=accessibleSites(),current=sel.value,context=activeSite();
+    const wanted=context||current;
+    const desired=[''].concat(sites.map(s=>s.id)).join('|');
+    const existing=[...sel.options].map(o=>o.value).join('|');
+    if(existing!==desired)sel.innerHTML='<option value="">All accessible sites</option>'+sites.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
+    if([...sel.options].some(o=>o.value===wanted))sel.value=wanted;
   }
   async function loadEnquiries(){
     if(isViewer())return;
@@ -51,6 +70,7 @@
   }
   function render(){
     const list=$id('commercialEnquiryList'),kpis=$id('commercialEnquiryKpis');if(!list||!kpis)return;
+    syncManagerControl($id('commercialEnquiries'));refreshSiteOptions();
     const now=Date.now(),open=ENQUIRIES.filter(x=>['enquiry','held'].includes(x.status)),holds=ENQUIRIES.filter(x=>x.status==='held'),expiring=holds.filter(x=>x.hold_until&&new Date(x.hold_until).getTime()<=now+48*3600000);
     kpis.innerHTML=`<div><span>Open opportunities</span><b>${open.length}</b></div><div><span>Active holds</span><b>${holds.length}</b></div><div><span>Holds due within 48h</span><b>${expiring.length}</b></div>`;
     const rows=visibleRows();
@@ -60,12 +80,12 @@
       return `<div class="commercial-row"><div><b>${esc(x.enquiry_title)}</b><span>${esc(hirerName(x.hirer_id)||x.contact_name||'Prospective hirer')}</span></div><div><b>${esc(uk(x.requested_date))}</b><span>${shortTime(x.start_time)}–${shortTime(x.end_time)} · ${esc(siteName(x.site_id))}</span></div><div><span class="commercial-status ${x.status}">${esc(x.status)}</span>${hold}</div><div class="commercial-actions">${canManage()?`<button class="s" onclick="editCommercialEnquiry('${x.id}')">Edit</button>${x.status==='enquiry'?`<button class="s" onclick="holdCommercialEnquiry('${x.id}')">Place hold</button>`:''}${['enquiry','held'].includes(x.status)?`<button class="p" onclick="convertCommercialEnquiry('${x.id}')">Convert to booking</button><button class="link" onclick="closeCommercialEnquiry('${x.id}','lost')">Lost</button>`:''}`:''}</div></div>`;
     }).join(''):'<div class="commercial-empty">No enquiries match this selection.</div>';
   }
-  function hirerOptions(selected){return '<option value="">Prospective / not yet a hirer</option>'+(H||[]).map(h=>`<option value="${h.id}" ${h.id===selected?'selected':''}>${esc(h.name)}</option>`).join('');}
-  function siteOptions(selected){return (S||[]).map(s=>`<option value="${s.id}" ${s.id===selected?'selected':''}>${esc(s.name)}</option>`).join('');}
+  function hirerOptions(selected){return '<option value="">Prospective / not yet a hirer</option>'+(typeof H!=='undefined'?H:[]).map(h=>`<option value="${h.id}" ${h.id===selected?'selected':''}>${esc(h.name)}</option>`).join('');}
+  function siteOptions(selected){return accessibleSites().map(s=>`<option value="${s.id}" ${s.id===selected?'selected':''}>${esc(s.name)}</option>`).join('');}
   window.newCommercialEnquiry=function(prefill={}){if(!canManage())return;openEditor(null,prefill);};
   window.editCommercialEnquiry=function(id){if(!canManage())return;const x=ENQUIRIES.find(r=>r.id===id);if(x)openEditor(x,{});};
   function openEditor(existing,prefill){
-    const x=existing||{},site=prefill.site_id||x.site_id||activeSite()||(S||[])[0]?.id||'',date=prefill.requested_date||x.requested_date||'',start=prefill.start_time||shortTime(x.start_time),end=prefill.end_time||shortTime(x.end_time);
+    const x=existing||{},sites=accessibleSites(),site=prefill.site_id||x.site_id||activeSite()||sites[0]?.id||'',date=prefill.requested_date||x.requested_date||'',start=prefill.start_time||shortTime(x.start_time),end=prefill.end_time||shortTime(x.end_time);
     modal(existing?'Edit commercial enquiry':'Add commercial enquiry',`<label>Site<select id=ceSite>${siteOptions(site)}</select></label><label>Existing hirer<select id=ceHirer>${hirerOptions(x.hirer_id||'')}</select></label><label>Enquiry / organisation name<input id=ceTitle value="${esc(x.enquiry_title||'')}" placeholder="e.g. ABC Swim Club pool hire"></label><label>Contact name<input id=ceContact value="${esc(x.contact_name||'')}"></label><label>Email<input id=ceEmail type=email value="${esc(x.contact_email||'')}"></label><label>Phone<input id=cePhone value="${esc(x.contact_phone||'')}"></label><label>Date<input id=ceDate type=date value="${esc(date)}"></label><label>Start<input id=ceStart type=time value="${esc(start)}"></label><label>End<input id=ceEnd type=time value="${esc(end)}"></label><label>Notes<textarea id=ceNotes>${esc(x.notes||'')}</textarea></label>`,async()=>{
       if(!ceSite.value||!ceTitle.value.trim()||!ceDate.value||!ceStart.value||!ceEnd.value)return alert('Complete the site, enquiry name, date and times.');
       if(ceEnd.value<=ceStart.value)return alert('End time must be after start time.');
@@ -108,9 +128,11 @@
     if(!canManage())return;
     document.querySelectorAll('.availability-slot').forEach(slot=>{if(slot.querySelector('.availability-enquiry-btn'))return;const btn=document.createElement('button');btn.type='button';btn.className='link availability-enquiry-btn';btn.textContent='Create enquiry';btn.onclick=ev=>{ev.stopPropagation();const prefill=slotFromElement(btn);window.newCommercialEnquiry(prefill||{});};slot.appendChild(btn);});
   }
-  const observer=new MutationObserver(()=>{ensurePanel();enhanceAvailabilitySlots();});
+  let syncTimer=null;
+  function scheduleSync(){clearTimeout(syncTimer);syncTimer=setTimeout(()=>{const panel=ensurePanel();if(panel){refreshSiteOptions();syncManagerControl(panel);}enhanceAvailabilitySlots();},40);}
+  const observer=new MutationObserver(scheduleSync);
   observer.observe(document.body,{childList:true,subtree:true});
   document.addEventListener('change',ev=>{if(['siteScope','siteSelect','calSite'].includes(ev.target?.id)){refreshSiteOptions();render();}});
-  window.addEventListener('load',()=>setTimeout(()=>{ensurePanel();loadEnquiries();enhanceAvailabilitySlots();},250));
+  window.addEventListener('load',()=>{setTimeout(()=>{ensurePanel();loadEnquiries();enhanceAvailabilitySlots();},250);setTimeout(scheduleSync,1000);});
   if(typeof window.render==='function')OpsLifecycle.use('render',function(next){const out=next();setTimeout(()=>{ensurePanel();loadEnquiries();enhanceAvailabilitySlots();},0);return out;});
 })();
