@@ -1,0 +1,1 @@
+Commercial enquiries are lazy-loaded. If the module finishes after the browser load event, the loader replays the load bootstrap so the panel initialises and loads enquiry data. Inner module URLs are cache-busted to prevent stale code after deployment.
