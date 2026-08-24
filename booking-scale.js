@@ -4,9 +4,11 @@
   let loading = false;
   let complete = false;
 
-  async function refreshFullBookingHistoryIfNeeded() {
-    if (loading || complete || !Array.isArray(B) || B.length < PAGE_SIZE) {
-      if (Array.isArray(B) && B.length < PAGE_SIZE) complete = true;
+  async function refreshFullBookingHistoryIfNeeded(force = false) {
+    if (force) complete = false;
+    if (loading || complete || typeof B === 'undefined' || !Array.isArray(B)) return;
+    if (B.length < PAGE_SIZE) {
+      complete = true;
       return;
     }
 
@@ -48,9 +50,21 @@
     }
   }
 
-  OpsLifecycle.use('render', function (next) {
-    const out = next();
-    setTimeout(refreshFullBookingHistoryIfNeeded, 0);
-    return out;
-  });
+  function schedule(force = false) {
+    setTimeout(() => refreshFullBookingHistoryIfNeeded(force), 0);
+  }
+
+  const app = document.getElementById('app');
+  if (app) {
+    new MutationObserver(() => {
+      if (!app.classList.contains('hide')) schedule(false);
+    }).observe(app, { attributes: true, attributeFilter: ['class'] });
+  }
+
+  document.addEventListener('click', event => {
+    if (event.target?.id === 'refresh') schedule(true);
+  }, true);
+
+  window.addEventListener('load', () => schedule(false));
+  schedule(false);
 })();
