@@ -41,6 +41,13 @@
     if (['calSite', 'calOrg', 'calTerm'].includes(event.target?.id)) relabelOrganisationFilter();
   });
 
+  if (!document.querySelector('script[data-booking-scale]')) {
+    const script = document.createElement('script');
+    script.src = 'booking-scale.js?v=20260824-1';
+    script.dataset.bookingScale = '1';
+    document.head.appendChild(script);
+  }
+
   attachObserver();
   relabelOrganisationFilter();
 })();
