@@ -26,6 +26,7 @@
       const bookings=document.getElementById('bookings');
       if(bookings&&profileReady()){
         ensurePanelShell();
+        if(typeof window.refreshCommercialEnquiries==='function')window.refreshCommercialEnquiries();
         replayStartup();
       }
       attempts++;
@@ -33,7 +34,7 @@
     };
     tick();
   }
-  load('commercial-enquiries-core.js?v=20260825-1')
+  load('commercial-enquiries-core.js?v=20260825-2')
     .then(()=>load('commercial-enquiry-archive.js?v=20260825-1'))
     .then(()=>setTimeout(ensureStarted,0))
     .catch(err=>console.error('Commercial enquiry module failed to load',err));

@@ -1,11 +1,17 @@
 const fs=require('fs');
 const assert=require('assert');
 const js=fs.readFileSync('commercial-enquiries.js','utf8');
+const core=fs.readFileSync('commercial-enquiries-core.js','utf8');
 assert(js.includes("window.dispatchEvent(new Event('load'))"),'loader must replay commercial enquiry startup');
 assert(js.includes('attempts<40'),'loader must retry while authenticated context is becoming ready');
 assert(js.includes('profileReady()'),'loader must wait for the authenticated profile before retrying startup');
 assert(js.includes('ensurePanelShell()'),'loader must create a calendar panel fallback when insertion timing fails');
 assert(js.includes("document.getElementById('bookingTabCalendar')"),'fallback must live inside the Calendar tab');
 assert(js.includes("option value=\"archived\""),'fallback must expose the Archived filter');
-assert(js.includes('commercial-enquiries-core.js?v=20260825-1'),'core module must be cache-busted');
+assert(js.includes('commercial-enquiries-core.js?v=20260825-2'),'core module must use the new data-init cache key');
+assert(js.includes("typeof window.refreshCommercialEnquiries==='function'"),'loader must explicitly request enquiry data when the core is ready');
+assert(core.includes('window.refreshCommercialEnquiries=loadEnquiries'),'core must expose a direct enquiry refresh hook');
+assert(core.includes('function bootstrapData()'),'core must self-start enquiry data loading');
+assert(core.includes('attempts<60'),'core bootstrap must retry while authentication and panel state settle');
+assert(core.includes("option value=\"archived\""),'core-created panel must expose the Archived filter');
 console.log('commercial enquiry loader tests passed');

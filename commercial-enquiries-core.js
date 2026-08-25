@@ -4,8 +4,9 @@
   const $id=id=>document.getElementById(id);
   const esc=value=>typeof e==='function'?e(value):String(value??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const shortTime=v=>String(v||'').slice(0,5);
-  const canManage=()=>MANAGE_ROLES.has(String(window.P?.role||P?.role||''));
-  const isViewer=()=>String(window.P?.role||P?.role||'')==='operational_viewer';
+  const profile=()=>{try{return typeof P!=='undefined'?P:(window.P||null);}catch(_){return window.P||null;}};
+  const canManage=()=>MANAGE_ROLES.has(String(profile()?.role||''));
+  const isViewer=()=>String(profile()?.role||'')==='operational_viewer';
   const activeSite=()=>typeof window.getActiveSiteId==='function'?window.getActiveSiteId():($id('calSite')?.value||'');
   const siteName=id=>(S||[]).find(x=>x.id===id)?.name||'';
   const hirerName=id=>(H||[]).find(x=>x.id===id)?.name||'';
@@ -19,7 +20,7 @@
       panel=document.createElement('section');
       panel.id='commercialEnquiries';
       panel.className='commercial-enquiries';
-      panel.innerHTML=`<div class="commercial-head"><div><h2>Commercial enquiries</h2><p>Track pool-hire opportunities, temporary holds and conversion into confirmed bookings.</p></div>${canManage()?'<button type="button" class="p" onclick="newCommercialEnquiry()">+ Add enquiry</button>':''}</div><div class="commercial-kpis" id="commercialEnquiryKpis"></div><div class="commercial-toolbar"><label>Status<select id="commercialStatus"><option value="open">Open enquiries & holds</option><option value="enquiry">Enquiries</option><option value="held">On hold</option><option value="converted">Converted</option><option value="lost">Lost</option><option value="all">All</option></select></label><label>Site<select id="commercialSite"></select></label></div><div id="commercialEnquiryList" class="commercial-list"><div class="muted">Loading enquiries…</div></div>`;
+      panel.innerHTML=`<div class="commercial-head"><div><h2>Commercial enquiries</h2><p>Track pool-hire opportunities, temporary holds and conversion into confirmed bookings.</p></div>${canManage()?'<button type="button" class="p" onclick="newCommercialEnquiry()">+ Add enquiry</button>':''}</div><div class="commercial-kpis" id="commercialEnquiryKpis"></div><div class="commercial-toolbar"><label>Status<select id="commercialStatus"><option value="open">Open enquiries & holds</option><option value="enquiry">Enquiries</option><option value="held">On hold</option><option value="converted">Converted</option><option value="lost">Lost</option><option value="archived">Archived</option><option value="all">All</option></select></label><label>Site<select id="commercialSite"></select></label></div><div id="commercialEnquiryList" class="commercial-list"><div class="muted">Loading enquiries…</div></div>`;
       const shared=$id('sharedBookingCalendar');
       if(shared)shared.insertAdjacentElement('afterend',panel);else bookings.appendChild(panel);
       $id('commercialStatus').onchange=render;
@@ -36,10 +37,16 @@
   async function loadEnquiries(){
     if(isViewer())return;
     const panel=ensurePanel();if(!panel)return;
-    const {data,error}=await sb.from('pool_hire_enquiries').select('*').order('requested_date',{ascending:true}).order('start_time',{ascending:true});
-    if(error){$id('commercialEnquiryList').innerHTML=`<div class="err">${esc(error.message)}</div>`;return;}
-    ENQUIRIES=data||[];refreshSiteOptions();render();
+    const list=$id('commercialEnquiryList');
+    try{
+      const {data,error}=await sb.from('pool_hire_enquiries').select('*').order('requested_date',{ascending:true}).order('start_time',{ascending:true});
+      if(error)throw error;
+      ENQUIRIES=data||[];refreshSiteOptions();render();
+    }catch(error){
+      if(list)list.innerHTML=`<div class="err">${esc(error?.message||error)}</div>`;
+    }
   }
+  window.refreshCommercialEnquiries=loadEnquiries;
   function visibleRows(){
     const status=$id('commercialStatus')?.value||'open',site=$id('commercialSite')?.value||'';
     return ENQUIRIES.filter(x=>{
@@ -70,8 +77,9 @@
       if(!ceSite.value||!ceTitle.value.trim()||!ceDate.value||!ceStart.value||!ceEnd.value)return alert('Complete the site, enquiry name, date and times.');
       if(ceEnd.value<=ceStart.value)return alert('End time must be after start time.');
       if(ceEmail.value&&!ceEmail.checkValidity())return alert('Enter a valid email address.');
-      const payload={organisation_id:P.organisation_id,site_id:ceSite.value,hirer_id:ceHirer.value||null,enquiry_title:ceTitle.value.trim(),contact_name:ceContact.value.trim()||null,contact_email:ceEmail.value.trim()||null,contact_phone:cePhone.value.trim()||null,requested_date:ceDate.value,start_time:ceStart.value,end_time:ceEnd.value,notes:ceNotes.value.trim()||null,updated_at:new Date().toISOString()};
-      if(!existing){payload.created_by=P.id;payload.status='enquiry';}
+      const p=profile();
+      const payload={organisation_id:p?.organisation_id,site_id:ceSite.value,hirer_id:ceHirer.value||null,enquiry_title:ceTitle.value.trim(),contact_name:ceContact.value.trim()||null,contact_email:ceEmail.value.trim()||null,contact_phone:cePhone.value.trim()||null,requested_date:ceDate.value,start_time:ceStart.value,end_time:ceEnd.value,notes:ceNotes.value.trim()||null,updated_at:new Date().toISOString()};
+      if(!existing){payload.created_by=p?.id;payload.status='enquiry';}
       const q=existing?sb.from('pool_hire_enquiries').update(payload).eq('id',existing.id):sb.from('pool_hire_enquiries').insert(payload);
       const {error}=await q;if(error)return alert(error.message);closeM();await loadEnquiries();
     });
@@ -91,7 +99,8 @@
     modal('Convert enquiry to booking',`<label>Site<input value="${esc(siteName(x.site_id))}" disabled></label><label>Organisation<input value="${esc(hirerName(x.hirer_id))}" disabled></label><label>Booking name<input id=cbTitle value="${esc(x.enquiry_title)}"></label><label>Date<input id=cbDate type=date value="${x.requested_date}"></label><label>Start<input id=cbStart type=time value="${shortTime(x.start_time)}"></label><label>End<input id=cbEnd type=time value="${shortTime(x.end_time)}"></label><label>Hourly rate (£/hour)<input id=cbRate type=number min=0 step=.01></label><label>VAT<select id=cbVat><option value=false>No VAT</option><option value=true>VAT applies</option></select></label>`,async()=>{
       if(!cbTitle.value.trim()||!cbDate.value||!cbStart.value||!cbEnd.value)return alert('Complete the booking details.');
       if(cbEnd.value<=cbStart.value)return alert('End time must be after start time.');
-      const booking={site_id:x.site_id,hirer_id:x.hirer_id,booking_type:'external_hire',booking_category:'other',external_category:'other',title:cbTitle.value.trim(),booking_date:cbDate.value,start_time:cbStart.value,end_time:cbEnd.value,status:'confirmed',rate:cbRate.value!==''?Number(cbRate.value):null,vat_applicable:cbVat.value==='true',charge_type:'chargeable',foc_reason:null,created_by:P.id};
+      const p=profile();
+      const booking={site_id:x.site_id,hirer_id:x.hirer_id,booking_type:'external_hire',booking_category:'other',external_category:'other',title:cbTitle.value.trim(),booking_date:cbDate.value,start_time:cbStart.value,end_time:cbEnd.value,status:'confirmed',rate:cbRate.value!==''?Number(cbRate.value):null,vat_applicable:cbVat.value==='true',charge_type:'chargeable',foc_reason:null,created_by:p?.id};
       const {data,error}=await sb.from('bookings').insert(booking).select().single();if(error)return alert(error.message);
       const upd=await sb.from('pool_hire_enquiries').update({status:'converted',hold_until:null,converted_booking_id:data.id,updated_at:new Date().toISOString()}).eq('id',id);if(upd.error)return alert('Booking created, but the enquiry could not be marked converted: '+upd.error.message);
       closeM();await load();await loadEnquiries();if(typeof window.setBookingTab==='function')window.setBookingTab('single');
@@ -108,9 +117,27 @@
     if(!canManage())return;
     document.querySelectorAll('.availability-slot').forEach(slot=>{if(slot.querySelector('.availability-enquiry-btn'))return;const btn=document.createElement('button');btn.type='button';btn.className='link availability-enquiry-btn';btn.textContent='Create enquiry';btn.onclick=ev=>{ev.stopPropagation();const prefill=slotFromElement(btn);window.newCommercialEnquiry(prefill||{});};slot.appendChild(btn);});
   }
+  function bootstrapData(){
+    let attempts=0,busy=false;
+    const tick=async()=>{
+      if(isViewer())return;
+      const ready=!!profile()?.role&&!!$id('commercialEnquiries')&&typeof sb!=='undefined';
+      if(ready&&!busy){
+        busy=true;
+        await loadEnquiries();
+        busy=false;
+        const list=$id('commercialEnquiryList');
+        if(list&&!list.textContent.includes('Loading enquiries'))return;
+      }
+      attempts++;
+      if(attempts<60)setTimeout(tick,250);
+    };
+    setTimeout(tick,0);
+  }
   const observer=new MutationObserver(()=>{ensurePanel();enhanceAvailabilitySlots();});
   observer.observe(document.body,{childList:true,subtree:true});
   document.addEventListener('change',ev=>{if(['siteScope','siteSelect','calSite'].includes(ev.target?.id)){refreshSiteOptions();render();}});
   window.addEventListener('load',()=>setTimeout(()=>{ensurePanel();loadEnquiries();enhanceAvailabilitySlots();},250));
   if(typeof window.render==='function')OpsLifecycle.use('render',function(next){const out=next();setTimeout(()=>{ensurePanel();loadEnquiries();enhanceAvailabilitySlots();},0);return out;});
+  bootstrapData();
 })();
