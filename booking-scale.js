@@ -3,6 +3,20 @@
   const PAGE_SIZE = 500;
   let loading = false;
   let complete = false;
+  let enquiryFallbackRows = [];
+
+  const esc = value => String(value ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const shortTime = value => String(value || '').slice(0, 5);
+  const siteName = id => {
+    try { return (S || []).find(x => x.id === id)?.name || ''; } catch (_) { return ''; }
+  };
+  const hirerName = id => {
+    try { return (H || []).find(x => x.id === id)?.name || ''; } catch (_) { return ''; }
+  };
+  const ukDate = value => {
+    if (!value) return '';
+    return new Date(value + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
 
   function ensureCommercialEnquiriesPanel() {
     if (document.getElementById('commercialEnquiries')) return;
@@ -20,6 +34,79 @@
       try { window.dispatchEvent(new Event('load')); } catch (_) {}
     }, 0);
   }
+
+  function renderCommercialEnquiryFallback() {
+    const list = document.getElementById('commercialEnquiryList');
+    const kpis = document.getElementById('commercialEnquiryKpis');
+    const statusEl = document.getElementById('commercialStatus');
+    const siteEl = document.getElementById('commercialSite');
+    if (!list || !kpis || !statusEl || !siteEl) return;
+
+    const status = statusEl.value || 'open';
+    const site = siteEl.value || '';
+    const now = Date.now();
+    const open = enquiryFallbackRows.filter(x => ['enquiry', 'held'].includes(x.status));
+    const holds = enquiryFallbackRows.filter(x => x.status === 'held');
+    const expiring = holds.filter(x => x.hold_until && new Date(x.hold_until).getTime() <= now + 48 * 3600000);
+    kpis.innerHTML = `<div><span>Open opportunities</span><b>${open.length}</b></div><div><span>Active holds</span><b>${holds.length}</b></div><div><span>Holds due within 48h</span><b>${expiring.length}</b></div>`;
+
+    const rows = enquiryFallbackRows.filter(x => {
+      if (site && x.site_id !== site) return false;
+      if (status === 'open' && !['enquiry', 'held'].includes(x.status)) return false;
+      if (status !== 'all' && status !== 'open' && x.status !== status) return false;
+      return true;
+    });
+
+    list.innerHTML = rows.length ? rows.map(x => {
+      const who = hirerName(x.hirer_id) || x.contact_name || 'Prospective hirer';
+      const canArchive = ['converted', 'lost', 'cancelled'].includes(x.status);
+      const edit = typeof window.editCommercialEnquiry === 'function' ? `<button class="s" onclick="editCommercialEnquiry('${x.id}')">Edit</button>` : '';
+      const archive = canArchive ? `<button class="link" onclick="archiveCommercialEnquiryFallback('${x.id}')">Archive</button>` : '';
+      return `<div class="commercial-row"><div><b>${esc(x.enquiry_title)}</b><span>${esc(who)}</span></div><div><b>${esc(ukDate(x.requested_date))}</b><span>${shortTime(x.start_time)}–${shortTime(x.end_time)} · ${esc(siteName(x.site_id))}</span></div><div><span class="commercial-status ${esc(x.status)}">${esc(x.status)}</span></div><div class="commercial-actions">${edit}${archive}</div></div>`;
+    }).join('') : '<div class="commercial-empty">No enquiries match this selection.</div>';
+  }
+
+  async function loadCommercialEnquiriesFallback(force = false) {
+    ensureCommercialEnquiriesPanel();
+    const list = document.getElementById('commercialEnquiryList');
+    if (!list) return;
+    if (!force && !list.textContent.includes('Loading enquiries')) return;
+    try {
+      const result = await sb.from('pool_hire_enquiries').select('*').order('requested_date', { ascending: true }).order('start_time', { ascending: true });
+      if (result.error) throw result.error;
+      enquiryFallbackRows = result.data || [];
+      const siteEl = document.getElementById('commercialSite');
+      if (siteEl) {
+        const current = siteEl.value;
+        let sites = [];
+        try { sites = S || []; } catch (_) {}
+        siteEl.innerHTML = '<option value="">All accessible sites</option>' + sites.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
+        if ([...siteEl.options].some(o => o.value === current)) siteEl.value = current;
+        siteEl.onchange = renderCommercialEnquiryFallback;
+      }
+      const statusEl = document.getElementById('commercialStatus');
+      if (statusEl) statusEl.onchange = renderCommercialEnquiryFallback;
+      renderCommercialEnquiryFallback();
+    } catch (err) {
+      list.innerHTML = `<div class="err">${esc(err?.message || err)}</div>`;
+    }
+  }
+
+  window.archiveCommercialEnquiryFallback = async function (id) {
+    if (!confirm('Archive this enquiry? It will remain available under the Archived filter.')) return;
+    try {
+      const result = await sb.from('pool_hire_enquiries').update({ status: 'archived', hold_until: null, updated_at: new Date().toISOString() }).eq('id', id);
+      if (result.error) throw result.error;
+      await loadCommercialEnquiriesFallback(true);
+      const statusEl = document.getElementById('commercialStatus');
+      if (statusEl) {
+        statusEl.value = 'archived';
+        renderCommercialEnquiryFallback();
+      }
+    } catch (err) {
+      alert(err?.message || String(err));
+    }
+  };
 
   async function refreshFullBookingHistoryIfNeeded(force = false) {
     if (force) complete = false;
@@ -70,6 +157,7 @@
   function schedule(force = false) {
     ensureCommercialEnquiriesPanel();
     setTimeout(() => refreshFullBookingHistoryIfNeeded(force), 0);
+    setTimeout(() => loadCommercialEnquiriesFallback(force), 900);
   }
 
   const app = document.getElementById('app');
@@ -81,7 +169,10 @@
 
   document.addEventListener('click', event => {
     if (event.target?.id === 'refresh') schedule(true);
-    if (event.target?.dataset?.btab === 'calendar') setTimeout(ensureCommercialEnquiriesPanel, 0);
+    if (event.target?.dataset?.btab === 'calendar') setTimeout(() => {
+      ensureCommercialEnquiriesPanel();
+      loadCommercialEnquiriesFallback(false);
+    }, 900);
   }, true);
 
   window.addEventListener('load', () => schedule(false));
