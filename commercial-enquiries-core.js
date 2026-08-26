@@ -1,6 +1,7 @@
 (function(){
   const MANAGE_ROLES=new Set(['owner_admin','operations_admin','site_manager','pool_manager','lettings_manager']);
   let ENQUIRIES=[];
+  let enquiryLoadVersion=0;
   const $id=id=>document.getElementById(id);
   const esc=value=>typeof e==='function'?e(value):String(value??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const shortTime=v=>String(v||'').slice(0,5);
@@ -36,13 +37,17 @@
   }
   async function loadEnquiries(){
     if(isViewer())return;
+    if(!profile()?.id)return;
     const panel=ensurePanel();if(!panel)return;
     const list=$id('commercialEnquiryList');
+    const requestVersion=++enquiryLoadVersion;
     try{
       const {data,error}=await sb.from('pool_hire_enquiries').select('*').order('requested_date',{ascending:true}).order('start_time',{ascending:true});
       if(error)throw error;
+      if(requestVersion!==enquiryLoadVersion)return;
       ENQUIRIES=data||[];refreshSiteOptions();render();
     }catch(error){
+      if(requestVersion!==enquiryLoadVersion)return;
       if(list)list.innerHTML=`<div class="err">${esc(error?.message||error)}</div>`;
     }
   }

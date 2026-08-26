@@ -94,10 +94,11 @@
     try {
       let userId = '';
       try { userId = typeof P !== 'undefined' && P ? P.id || '' : ''; } catch (_) {}
+      if (!userId) return;
       const [enquiryResult, siteResult, membershipResult] = await Promise.all([
         sb.from('pool_hire_enquiries').select('*').order('requested_date', { ascending: true }).order('start_time', { ascending: true }),
         sb.from('sites').select('id,name').order('name'),
-        userId ? sb.from('site_memberships').select('site_id,can_edit_bookings').eq('user_id', userId) : Promise.resolve({ data: [] })
+        sb.from('site_memberships').select('site_id,can_edit_bookings').eq('user_id', userId)
       ]);
       if (enquiryResult.error) throw enquiryResult.error;
       if (siteResult.error) throw siteResult.error;
