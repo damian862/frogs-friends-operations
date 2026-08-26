@@ -24,9 +24,9 @@
       panel.innerHTML=`<div class="commercial-head"><div><h2>Commercial enquiries</h2><p>Track pool-hire opportunities, temporary holds and conversion into confirmed bookings.</p></div>${canManage()?'<button type="button" class="p" onclick="newCommercialEnquiry()">+ Add enquiry</button>':''}</div><div class="commercial-kpis" id="commercialEnquiryKpis"></div><div class="commercial-toolbar"><label>Status<select id="commercialStatus"><option value="open">Open enquiries & holds</option><option value="enquiry">Enquiries</option><option value="held">On hold</option><option value="converted">Converted</option><option value="lost">Lost</option><option value="archived">Archived</option><option value="all">All</option></select></label><label>Site<select id="commercialSite"></select></label></div><div id="commercialEnquiryList" class="commercial-list"><div class="muted">Loading enquiries…</div></div>`;
       const shared=$id('sharedBookingCalendar');
       if(shared)shared.insertAdjacentElement('afterend',panel);else bookings.appendChild(panel);
-      $id('commercialStatus').onchange=render;
-      $id('commercialSite').onchange=render;
     }
+    $id('commercialStatus').onchange=render;
+    $id('commercialSite').onchange=render;
     return panel;
   }
   function refreshSiteOptions(){
