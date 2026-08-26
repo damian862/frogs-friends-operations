@@ -8,7 +8,7 @@ assert(js.includes('profileReady()'),'loader must wait for the authenticated pro
 assert(js.includes('ensurePanelShell()'),'loader must create a calendar panel fallback when insertion timing fails');
 assert(js.includes("document.getElementById('bookingTabCalendar')"),'fallback must live inside the Calendar tab');
 assert(js.includes("option value=\"archived\""),'fallback must expose the Archived filter');
-assert(js.includes('commercial-enquiries-core.js?v=20260826-8'),'core module must use the new data-init cache key');
+assert(js.includes('commercial-enquiries-core.js?v=20260826-9'),'core module must use the new data-init cache key');
 assert(js.includes("typeof window.refreshCommercialEnquiries==='function'"),'loader must explicitly request enquiry data when the core is ready');
 assert(js.includes("new CustomEvent('commercial-enquiry-saved')"),'successful standalone saves must notify fallback loaders immediately');
 assert(js.includes('async function refreshAfterSave()'),'successful standalone saves must wait for the core refresh hook');
@@ -18,5 +18,6 @@ assert(core.includes('attempts<60'),'core bootstrap must retry while authenticat
 assert(core.includes('if(!profile()?.id)return'),'core must not issue anonymous pre-profile enquiry reads');
 assert(core.includes('if(enquiryLoadPromise)'),'concurrent enquiry reads must share the active request');
 assert(!core.includes('requestVersion!==enquiryLoadVersion'),'render-time reads must not discard valid enquiry responses');
+assert(core.includes("    }\n    $id('commercialStatus').onchange=render;\n    $id('commercialSite').onchange=render;"),'core must bind filters even when the fallback created the panel');
 assert(core.includes("option value=\"archived\""),'core-created panel must expose the Archived filter');
 console.log('commercial enquiry loader tests passed');
