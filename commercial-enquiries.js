@@ -137,7 +137,7 @@
     };
     tick();
   }
-  load('commercial-enquiries-core.js?v=20260826-6')
+  load('commercial-enquiries-core.js?v=20260826-7')
     .then(()=>load('commercial-enquiry-archive.js?v=20260826-2'))
     .then(()=>setTimeout(ensureStarted,0))
     .catch(err=>console.error('Commercial enquiry module failed to load',err));

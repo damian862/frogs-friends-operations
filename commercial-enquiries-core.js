@@ -42,7 +42,7 @@
     const list=$id('commercialEnquiryList');
     const requestVersion=++enquiryLoadVersion;
     try{
-      const {data,error}=await sb.from('pool_hire_enquiries').select('*').order('requested_date',{ascending:true}).order('start_time',{ascending:true});
+      const {data,error}=await sb.rpc('visible_commercial_enquiries');
       if(error)throw error;
       if(requestVersion!==enquiryLoadVersion)return;
       ENQUIRIES=data||[];refreshSiteOptions();render();
