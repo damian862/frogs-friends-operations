@@ -8,6 +8,10 @@
 
   const esc = value => String(value ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const shortTime = value => String(value || '').slice(0, 5);
+  const MANAGE_ENQUIRY_ROLES = new Set(['owner_admin', 'operations_admin', 'site_manager', 'pool_manager', 'lettings_manager']);
+  const canManageCommercialEnquiries = () => {
+    try { return MANAGE_ENQUIRY_ROLES.has(String(typeof P !== 'undefined' && P ? P.role || '' : '')); } catch (_) { return false; }
+  };
   const siteName = id => {
     const fallback = enquiryFallbackSites.find(x => x.id === id)?.name;
     if (fallback) return fallback;
@@ -63,9 +67,13 @@
     list.innerHTML = rows.length ? rows.map(x => {
       const who = hirerName(x.hirer_id) || x.contact_name || 'Prospective hirer';
       const canArchive = ['converted', 'lost', 'cancelled'].includes(x.status);
-      const edit = typeof window.editCommercialEnquiry === 'function' ? `<button class="s" onclick="editCommercialEnquiry('${x.id}')">Edit</button>` : '';
+      const canManage = canManageCommercialEnquiries();
+      const edit = canManage && typeof window.editCommercialEnquiry === 'function' ? `<button class="s" onclick="editCommercialEnquiry('${x.id}')">Edit</button>` : '';
+      const hold = canManage && x.status === 'enquiry' && typeof window.holdCommercialEnquiry === 'function' ? `<button class="s" onclick="holdCommercialEnquiry('${x.id}')">Place hold</button>` : '';
+      const convert = canManage && ['enquiry', 'held'].includes(x.status) && typeof window.convertCommercialEnquiry === 'function' ? `<button class="p" onclick="convertCommercialEnquiry('${x.id}')">Convert to booking</button>` : '';
+      const lost = canManage && ['enquiry', 'held'].includes(x.status) && typeof window.closeCommercialEnquiry === 'function' ? `<button class="link" onclick="closeCommercialEnquiry('${x.id}','lost')">Lost</button>` : '';
       const archive = canArchive ? `<button class="link" onclick="archiveCommercialEnquiryFallback('${x.id}')">Archive</button>` : '';
-      return `<div class="commercial-row"><div><b>${esc(x.enquiry_title)}</b><span>${esc(who)}</span></div><div><b>${esc(ukDate(x.requested_date))}</b><span>${shortTime(x.start_time)}–${shortTime(x.end_time)} · ${esc(siteName(x.site_id))}</span></div><div><span class="commercial-status ${esc(x.status)}">${esc(x.status)}</span></div><div class="commercial-actions">${edit}${archive}</div></div>`;
+      return `<div class="commercial-row"><div><b>${esc(x.enquiry_title)}</b><span>${esc(who)}</span></div><div><b>${esc(ukDate(x.requested_date))}</b><span>${shortTime(x.start_time)}–${shortTime(x.end_time)} · ${esc(siteName(x.site_id))}</span></div><div><span class="commercial-status ${esc(x.status)}">${esc(x.status)}</span></div><div class="commercial-actions">${edit}${hold}${convert}${lost}${archive}</div></div>`;
     }).join('') : '<div class="commercial-empty">No enquiries match this selection.</div>';
   }
 
@@ -73,6 +81,10 @@
     ensureCommercialEnquiriesPanel();
     const list = document.getElementById('commercialEnquiryList');
     if (!list) return;
+    if (typeof window.refreshCommercialEnquiries === 'function') {
+      await window.refreshCommercialEnquiries();
+      return;
+    }
     if (!force && !list.textContent.includes('Loading enquiries')) return;
     try {
       const [enquiryResult, siteResult] = await Promise.all([
@@ -180,6 +192,10 @@
       loadCommercialEnquiriesFallback(false);
     }, 900);
   }, true);
+
+  window.addEventListener('commercial-enquiry-saved', () => {
+    setTimeout(() => loadCommercialEnquiriesFallback(true), 0);
+  });
 
   window.addEventListener('load', () => schedule(false));
   schedule(false);

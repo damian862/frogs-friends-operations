@@ -18,6 +18,17 @@
   }
   function closeEnquiryForm(){document.getElementById('ceStandaloneOverlay')?.remove();}
 
+  async function refreshAfterSave(){
+    window.dispatchEvent(new CustomEvent('commercial-enquiry-saved'));
+    for(let attempt=0;attempt<20;attempt++){
+      if(typeof window.refreshCommercialEnquiries==='function'){
+        await window.refreshCommercialEnquiries();
+        return;
+      }
+      await new Promise(resolve=>setTimeout(resolve,100));
+    }
+  }
+
   function openEnquiryForm(prefill={}){
     closeEnquiryForm();
     const p=profile();
@@ -84,7 +95,7 @@
         const {error}=await sb.from('pool_hire_enquiries').insert(payload);
         if(error)throw error;
         closeEnquiryForm();
-        if(typeof window.refreshCommercialEnquiries==='function')await window.refreshCommercialEnquiries();
+        await refreshAfterSave();
       }catch(error){save.disabled=false;save.textContent='Save';fail(error?.message||String(error));}
     };
   }
@@ -126,8 +137,8 @@
     };
     tick();
   }
-  load('commercial-enquiries-core.js?v=20260825-2')
-    .then(()=>load('commercial-enquiry-archive.js?v=20260825-1'))
+  load('commercial-enquiries-core.js?v=20260826-4')
+    .then(()=>load('commercial-enquiry-archive.js?v=20260826-2'))
     .then(()=>setTimeout(ensureStarted,0))
     .catch(err=>console.error('Commercial enquiry module failed to load',err));
 })();
