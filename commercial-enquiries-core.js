@@ -5,7 +5,7 @@
   const esc=value=>typeof e==='function'?e(value):String(value??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const shortTime=v=>String(v||'').slice(0,5);
   const profile=()=>{try{return typeof P!=='undefined'?P:(window.P||null);}catch(_){return window.P||null;}};
-  const canManage=()=>MANAGE_ROLES.has(String(profile()?.role||''));
+  const canManage=siteId=>MANAGE_ROLES.has(String(profile()?.role||''))||(typeof window.canManageCommercialSite==='function'&&window.canManageCommercialSite(siteId||activeSite()));
   const isViewer=()=>String(profile()?.role||'')==='operational_viewer';
   const activeSite=()=>typeof window.getActiveSiteId==='function'?window.getActiveSiteId():($id('calSite')?.value||'');
   const siteName=id=>(S||[]).find(x=>x.id===id)?.name||'';
@@ -64,13 +64,13 @@
     list.innerHTML=rows.length?rows.map(x=>{
       const expired=x.status==='held'&&x.hold_until&&new Date(x.hold_until).getTime()<now;
       const hold=x.status==='held'?`<span class="commercial-hold ${expired?'expired':''}">${expired?'Hold expired':'Held until'} ${x.hold_until?new Date(x.hold_until).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):''}</span>`:'';
-      return `<div class="commercial-row"><div><b>${esc(x.enquiry_title)}</b><span>${esc(hirerName(x.hirer_id)||x.contact_name||'Prospective hirer')}</span></div><div><b>${esc(uk(x.requested_date))}</b><span>${shortTime(x.start_time)}–${shortTime(x.end_time)} · ${esc(siteName(x.site_id))}</span></div><div><span class="commercial-status ${x.status}">${esc(x.status)}</span>${hold}</div><div class="commercial-actions">${canManage()?`<button class="s" onclick="editCommercialEnquiry('${x.id}')">Edit</button>${x.status==='enquiry'?`<button class="s" onclick="holdCommercialEnquiry('${x.id}')">Place hold</button>`:''}${['enquiry','held'].includes(x.status)?`<button class="p" onclick="convertCommercialEnquiry('${x.id}')">Convert to booking</button><button class="link" onclick="closeCommercialEnquiry('${x.id}','lost')">Lost</button>`:''}`:''}</div></div>`;
+      return `<div class="commercial-row"><div><b>${esc(x.enquiry_title)}</b><span>${esc(hirerName(x.hirer_id)||x.contact_name||'Prospective hirer')}</span></div><div><b>${esc(uk(x.requested_date))}</b><span>${shortTime(x.start_time)}–${shortTime(x.end_time)} · ${esc(siteName(x.site_id))}</span></div><div><span class="commercial-status ${x.status}">${esc(x.status)}</span>${hold}</div><div class="commercial-actions">${canManage(x.site_id)?`<button class="s" onclick="editCommercialEnquiry('${x.id}')">Edit</button>${x.status==='enquiry'?`<button class="s" onclick="holdCommercialEnquiry('${x.id}')">Place hold</button>`:''}${['enquiry','held'].includes(x.status)?`<button class="p" onclick="convertCommercialEnquiry('${x.id}')">Convert to booking</button><button class="link" onclick="closeCommercialEnquiry('${x.id}','lost')">Lost</button>`:''}`:''}</div></div>`;
     }).join(''):'<div class="commercial-empty">No enquiries match this selection.</div>';
   }
   function hirerOptions(selected){return '<option value="">Prospective / not yet a hirer</option>'+(H||[]).map(h=>`<option value="${h.id}" ${h.id===selected?'selected':''}>${esc(h.name)}</option>`).join('');}
   function siteOptions(selected){return (S||[]).map(s=>`<option value="${s.id}" ${s.id===selected?'selected':''}>${esc(s.name)}</option>`).join('');}
   window.newCommercialEnquiry=function(prefill={}){if(!canManage())return;openEditor(null,prefill);};
-  window.editCommercialEnquiry=function(id){if(!canManage())return;const x=ENQUIRIES.find(r=>r.id===id);if(x)openEditor(x,{});};
+  window.editCommercialEnquiry=function(id){const x=ENQUIRIES.find(r=>r.id===id);if(!x||!canManage(x.site_id))return;openEditor(x,{});};
   function openEditor(existing,prefill){
     const x=existing||{},site=prefill.site_id||x.site_id||activeSite()||(S||[])[0]?.id||'',date=prefill.requested_date||x.requested_date||'',start=prefill.start_time||shortTime(x.start_time),end=prefill.end_time||shortTime(x.end_time);
     modal(existing?'Edit commercial enquiry':'Add commercial enquiry',`<label>Site<select id=ceSite>${siteOptions(site)}</select></label><label>Existing hirer<select id=ceHirer>${hirerOptions(x.hirer_id||'')}</select></label><label>Enquiry / organisation name<input id=ceTitle value="${esc(x.enquiry_title||'')}" placeholder="e.g. ABC Swim Club pool hire"></label><label>Contact name<input id=ceContact value="${esc(x.contact_name||'')}"></label><label>Email<input id=ceEmail type=email value="${esc(x.contact_email||'')}"></label><label>Phone<input id=cePhone value="${esc(x.contact_phone||'')}"></label><label>Date<input id=ceDate type=date value="${esc(date)}"></label><label>Start<input id=ceStart type=time value="${esc(start)}"></label><label>End<input id=ceEnd type=time value="${esc(end)}"></label><label>Notes<textarea id=ceNotes>${esc(x.notes||'')}</textarea></label>`,async()=>{
@@ -85,16 +85,16 @@
     });
   }
   window.holdCommercialEnquiry=function(id){
-    if(!canManage())return;const x=ENQUIRIES.find(r=>r.id===id);if(!x)return;
+    const x=ENQUIRIES.find(r=>r.id===id);if(!x||!canManage(x.site_id))return;
     const defaultUntil=new Date(Date.now()+48*3600000);defaultUntil.setMinutes(defaultUntil.getMinutes()-defaultUntil.getTimezoneOffset());
     modal('Place temporary hold',`<label>Enquiry<input value="${esc(x.enquiry_title)}" disabled></label><label>Hold until<input id=ceHoldUntil type=datetime-local value="${defaultUntil.toISOString().slice(0,16)}"></label><div class="note">A hold is operational only; it does not create pool-hire income until converted to a booking.</div>`,async()=>{
       if(!ceHoldUntil.value)return alert('Choose when the hold expires.');
       const {error}=await sb.from('pool_hire_enquiries').update({status:'held',hold_until:new Date(ceHoldUntil.value).toISOString(),updated_at:new Date().toISOString()}).eq('id',id);if(error)return alert(error.message);closeM();await loadEnquiries();
     });
   };
-  window.closeCommercialEnquiry=async function(id,status){if(!canManage())return;const {error}=await sb.from('pool_hire_enquiries').update({status,hold_until:null,updated_at:new Date().toISOString()}).eq('id',id);if(error)return alert(error.message);await loadEnquiries();};
+  window.closeCommercialEnquiry=async function(id,status){const x=ENQUIRIES.find(r=>r.id===id);if(!x||!canManage(x.site_id))return;const {error}=await sb.from('pool_hire_enquiries').update({status,hold_until:null,updated_at:new Date().toISOString()}).eq('id',id);if(error)return alert(error.message);await loadEnquiries();};
   window.convertCommercialEnquiry=function(id){
-    if(!canManage())return;const x=ENQUIRIES.find(r=>r.id===id);if(!x)return;
+    const x=ENQUIRIES.find(r=>r.id===id);if(!x||!canManage(x.site_id))return;
     if(!x.hirer_id)return alert('Assign an existing hirer to the enquiry before converting it to a booking.');
     modal('Convert enquiry to booking',`<label>Site<input value="${esc(siteName(x.site_id))}" disabled></label><label>Organisation<input value="${esc(hirerName(x.hirer_id))}" disabled></label><label>Booking name<input id=cbTitle value="${esc(x.enquiry_title)}"></label><label>Date<input id=cbDate type=date value="${x.requested_date}"></label><label>Start<input id=cbStart type=time value="${shortTime(x.start_time)}"></label><label>End<input id=cbEnd type=time value="${shortTime(x.end_time)}"></label><label>Hourly rate (£/hour)<input id=cbRate type=number min=0 step=.01></label><label>VAT<select id=cbVat><option value=false>No VAT</option><option value=true>VAT applies</option></select></label>`,async()=>{
       if(!cbTitle.value.trim()||!cbDate.value||!cbStart.value||!cbEnd.value)return alert('Complete the booking details.');
