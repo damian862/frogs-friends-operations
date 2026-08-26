@@ -4,10 +4,13 @@
   let loading = false;
   let complete = false;
   let enquiryFallbackRows = [];
+  let enquiryFallbackSites = [];
 
   const esc = value => String(value ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const shortTime = value => String(value || '').slice(0, 5);
   const siteName = id => {
+    const fallback = enquiryFallbackSites.find(x => x.id === id)?.name;
+    if (fallback) return fallback;
     try { return (S || []).find(x => x.id === id)?.name || ''; } catch (_) { return ''; }
   };
   const hirerName = id => {
@@ -72,15 +75,18 @@
     if (!list) return;
     if (!force && !list.textContent.includes('Loading enquiries')) return;
     try {
-      const result = await sb.from('pool_hire_enquiries').select('*').order('requested_date', { ascending: true }).order('start_time', { ascending: true });
-      if (result.error) throw result.error;
-      enquiryFallbackRows = result.data || [];
+      const [enquiryResult, siteResult] = await Promise.all([
+        sb.from('pool_hire_enquiries').select('*').order('requested_date', { ascending: true }).order('start_time', { ascending: true }),
+        sb.from('sites').select('id,name').order('name')
+      ]);
+      if (enquiryResult.error) throw enquiryResult.error;
+      if (siteResult.error) throw siteResult.error;
+      enquiryFallbackRows = enquiryResult.data || [];
+      enquiryFallbackSites = siteResult.data || [];
       const siteEl = document.getElementById('commercialSite');
       if (siteEl) {
         const current = siteEl.value;
-        let sites = [];
-        try { sites = S || []; } catch (_) {}
-        siteEl.innerHTML = '<option value="">All accessible sites</option>' + sites.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
+        siteEl.innerHTML = '<option value="">All accessible sites</option>' + enquiryFallbackSites.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
         if ([...siteEl.options].some(o => o.value === current)) siteEl.value = current;
         siteEl.onchange = renderCommercialEnquiryFallback;
       }
