@@ -6,7 +6,7 @@
   let enquiryFallbackRows = [];
   let enquiryFallbackSites = [];
 
-  const esc = value => String(value ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[m]));
+  const esc = value => String(value ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const shortTime = value => String(value || '').slice(0, 5);
   const siteName = id => {
     const fallback = enquiryFallbackSites.find(x => x.id === id)?.name;
