@@ -5,13 +5,18 @@
   let complete = false;
   let enquiryFallbackRows = [];
   let enquiryFallbackSites = [];
+  let enquiryFallbackMemberships = [];
 
   const esc = value => String(value ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const shortTime = value => String(value || '').slice(0, 5);
   const MANAGE_ENQUIRY_ROLES = new Set(['owner_admin', 'operations_admin', 'site_manager', 'pool_manager', 'lettings_manager']);
-  const canManageCommercialEnquiries = () => {
-    try { return MANAGE_ENQUIRY_ROLES.has(String(typeof P !== 'undefined' && P ? P.role || '' : '')); } catch (_) { return false; }
+  const canManageCommercialEnquiries = siteId => {
+    try {
+      if (MANAGE_ENQUIRY_ROLES.has(String(typeof P !== 'undefined' && P ? P.role || '' : ''))) return true;
+    } catch (_) {}
+    return enquiryFallbackMemberships.some(m => m.can_edit_bookings === true && (!siteId || m.site_id === siteId));
   };
+  window.canManageCommercialSite = canManageCommercialEnquiries;
   const siteName = id => {
     const fallback = enquiryFallbackSites.find(x => x.id === id)?.name;
     if (fallback) return fallback;
@@ -67,7 +72,7 @@
     list.innerHTML = rows.length ? rows.map(x => {
       const who = hirerName(x.hirer_id) || x.contact_name || 'Prospective hirer';
       const canArchive = ['converted', 'lost', 'cancelled'].includes(x.status);
-      const canManage = canManageCommercialEnquiries();
+      const canManage = canManageCommercialEnquiries(x.site_id);
       const edit = canManage && typeof window.editCommercialEnquiry === 'function' ? `<button class="s" onclick="editCommercialEnquiry('${x.id}')">Edit</button>` : '';
       const hold = canManage && x.status === 'enquiry' && typeof window.holdCommercialEnquiry === 'function' ? `<button class="s" onclick="holdCommercialEnquiry('${x.id}')">Place hold</button>` : '';
       const convert = canManage && ['enquiry', 'held'].includes(x.status) && typeof window.convertCommercialEnquiry === 'function' ? `<button class="p" onclick="convertCommercialEnquiry('${x.id}')">Convert to booking</button>` : '';
@@ -87,14 +92,19 @@
     }
     if (!force && !list.textContent.includes('Loading enquiries')) return;
     try {
-      const [enquiryResult, siteResult] = await Promise.all([
+      let userId = '';
+      try { userId = typeof P !== 'undefined' && P ? P.id || '' : ''; } catch (_) {}
+      const [enquiryResult, siteResult, membershipResult] = await Promise.all([
         sb.from('pool_hire_enquiries').select('*').order('requested_date', { ascending: true }).order('start_time', { ascending: true }),
-        sb.from('sites').select('id,name').order('name')
+        sb.from('sites').select('id,name').order('name'),
+        userId ? sb.from('site_memberships').select('site_id,can_edit_bookings').eq('user_id', userId) : Promise.resolve({ data: [] })
       ]);
       if (enquiryResult.error) throw enquiryResult.error;
       if (siteResult.error) throw siteResult.error;
+      if (membershipResult.error) throw membershipResult.error;
       enquiryFallbackRows = enquiryResult.data || [];
       enquiryFallbackSites = siteResult.data || [];
+      enquiryFallbackMemberships = membershipResult.data || [];
       const siteEl = document.getElementById('commercialSite');
       if (siteEl) {
         const current = siteEl.value;
