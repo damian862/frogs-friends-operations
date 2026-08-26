@@ -6,6 +6,7 @@ const archive=fs.readFileSync('commercial-enquiry-archive.js','utf8');
 const index=fs.readFileSync('index.html','utf8');
 const migration=fs.readFileSync('supabase/migrations/20260824000000_commercial_pool_enquiries.sql','utf8');
 const visibilityMigration=fs.readFileSync('supabase/migrations/20260826134500_preserve_commercial_enquiry_creator_visibility.sql','utf8');
+const visibleRpcMigration=fs.readFileSync('supabase/migrations/20260826135000_add_visible_commercial_enquiries_rpc.sql','utf8');
 const fallback=fs.readFileSync('booking-scale.js','utf8');
 assert(index.includes('commercial-enquiries.js'),'commercial enquiry runtime must be loaded');
 assert(entry.includes('commercial-enquiries-core.js')&&entry.includes('commercial-enquiry-archive.js'),'entrypoint must load core and archive modules');
@@ -22,4 +23,6 @@ assert(migration.includes('has_site_access(site_id)'),'enquiry reads must be sit
 assert(migration.includes('can_edit_site_bookings(site_id)'),'enquiry writes must require booking edit permission');
 assert(migration.includes("status in ('enquiry','held','converted','lost','cancelled')"),'base enquiry statuses must be constrained');
 assert(visibilityMigration.includes("'archived'")&&visibilityMigration.includes('(select auth.uid()) = created_by'),'completed enquiries must be archivable and remain visible to their creator');
+assert(js.includes("sb.rpc('visible_commercial_enquiries')")&&fallback.includes("sb.rpc('visible_commercial_enquiries')"),'commercial enquiry readers must use the authenticated visibility function');
+assert(visibleRpcMigration.includes('security definer')&&visibleRpcMigration.includes('revoke all')&&visibleRpcMigration.includes('grant execute')&&visibleRpcMigration.includes('can_edit_bookings = true'),'visibility function must enforce authenticated site-scoped access');
 console.log('commercial enquiry workflow tests passed');
