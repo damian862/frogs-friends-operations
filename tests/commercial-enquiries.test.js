@@ -12,6 +12,8 @@ assert(js.includes("status:'converted'"),'conversion must mark the enquiry conve
 assert(js.includes("converted_booking_id:data.id"),'conversion must link the created booking');
 assert(js.includes("if(!x.hirer_id)return alert"),'conversion must require an existing hirer');
 assert(fallback.includes("'lettings_manager'")&&fallback.includes('Place hold')&&fallback.includes('Convert to booking')&&fallback.includes("'lost'"),'fallback rows must expose Lettings Manager enquiry actions');
+assert(fallback.includes("site_memberships")&&fallback.includes("can_edit_bookings"),'fallback permissions must match the site-level booking permission used by enquiry writes');
+assert(js.includes('window.canManageCommercialSite'),'core actions must honour the site-level booking permission');
 assert(fallback.includes("typeof window.refreshCommercialEnquiries === 'function'")&&fallback.includes('await window.refreshCommercialEnquiries()'),'fallback must hand rendering to the core once it is ready');
 assert(js.includes("isViewer()")&&js.includes("if(isViewer())return"),'operational viewer must not load commercial enquiries');
 assert(archive.includes("opt.value='archived'")&&archive.includes("closeCommercialEnquiry(id,'archived')"),'completed enquiries must support non-destructive archive');
