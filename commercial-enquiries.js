@@ -36,6 +36,7 @@
   }
   load('commercial-enquiries-core.js?v=20260825-2')
     .then(()=>load('commercial-enquiry-archive.js?v=20260825-1'))
+    .then(()=>load('commercial-enquiry-button-fix.js?v=20260826-1'))
     .then(()=>setTimeout(ensureStarted,0))
     .catch(err=>console.error('Commercial enquiry module failed to load',err));
 })();
