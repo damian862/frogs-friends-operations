@@ -1,7 +1,7 @@
 (function(){
   const MANAGE_ROLES=new Set(['owner_admin','operations_admin','site_manager','pool_manager','lettings_manager']);
   let ENQUIRIES=[];
-  let enquiryLoadVersion=0;
+  let enquiryLoadPromise=null;
   const $id=id=>document.getElementById(id);
   const esc=value=>typeof e==='function'?e(value):String(value??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const shortTime=v=>String(v||'').slice(0,5);
@@ -35,23 +35,29 @@
     sel.innerHTML='<option value="">All accessible sites</option>'+(S||[]).map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
     const wanted=context||current;if([...sel.options].some(o=>o.value===wanted))sel.value=wanted;
   }
-  async function loadEnquiries(){
+  async function loadEnquiries(force=false){
     if(isViewer())return;
     if(!profile()?.id)return;
     const panel=ensurePanel();if(!panel)return;
     const list=$id('commercialEnquiryList');
-    const requestVersion=++enquiryLoadVersion;
+    if(enquiryLoadPromise){
+      await enquiryLoadPromise;
+      if(!force)return;
+    }
+    enquiryLoadPromise=(async()=>{
     try{
       const {data,error}=await sb.rpc('visible_commercial_enquiries');
       if(error)throw error;
-      if(requestVersion!==enquiryLoadVersion)return;
       ENQUIRIES=data||[];refreshSiteOptions();render();
     }catch(error){
-      if(requestVersion!==enquiryLoadVersion)return;
       if(list)list.innerHTML=`<div class="err">${esc(error?.message||error)}</div>`;
+    }finally{
+      enquiryLoadPromise=null;
     }
+    })();
+    await enquiryLoadPromise;
   }
-  window.refreshCommercialEnquiries=loadEnquiries;
+  window.refreshCommercialEnquiries=()=>loadEnquiries(true);
   function visibleRows(){
     const status=$id('commercialStatus')?.value||'open',site=$id('commercialSite')?.value||'';
     return ENQUIRIES.filter(x=>{
@@ -86,7 +92,7 @@
       const payload={organisation_id:p?.organisation_id,site_id:ceSite.value,hirer_id:ceHirer.value||null,enquiry_title:ceTitle.value.trim(),contact_name:ceContact.value.trim()||null,contact_email:ceEmail.value.trim()||null,contact_phone:cePhone.value.trim()||null,requested_date:ceDate.value,start_time:ceStart.value,end_time:ceEnd.value,notes:ceNotes.value.trim()||null,updated_at:new Date().toISOString()};
       if(!existing){payload.created_by=p?.id;payload.status='enquiry';}
       const q=existing?sb.from('pool_hire_enquiries').update(payload).eq('id',existing.id):sb.from('pool_hire_enquiries').insert(payload);
-      const {error}=await q;if(error)return alert(error.message);closeM();await loadEnquiries();
+      const {error}=await q;if(error)return alert(error.message);closeM();await loadEnquiries(true);
     });
   }
   window.holdCommercialEnquiry=function(id){
@@ -94,10 +100,10 @@
     const defaultUntil=new Date(Date.now()+48*3600000);defaultUntil.setMinutes(defaultUntil.getMinutes()-defaultUntil.getTimezoneOffset());
     modal('Place temporary hold',`<label>Enquiry<input value="${esc(x.enquiry_title)}" disabled></label><label>Hold until<input id=ceHoldUntil type=datetime-local value="${defaultUntil.toISOString().slice(0,16)}"></label><div class="note">A hold is operational only; it does not create pool-hire income until converted to a booking.</div>`,async()=>{
       if(!ceHoldUntil.value)return alert('Choose when the hold expires.');
-      const {error}=await sb.from('pool_hire_enquiries').update({status:'held',hold_until:new Date(ceHoldUntil.value).toISOString(),updated_at:new Date().toISOString()}).eq('id',id);if(error)return alert(error.message);closeM();await loadEnquiries();
+      const {error}=await sb.from('pool_hire_enquiries').update({status:'held',hold_until:new Date(ceHoldUntil.value).toISOString(),updated_at:new Date().toISOString()}).eq('id',id);if(error)return alert(error.message);closeM();await loadEnquiries(true);
     });
   };
-  window.closeCommercialEnquiry=async function(id,status){const x=ENQUIRIES.find(r=>r.id===id);if(!x||!canManage(x.site_id))return;const {error}=await sb.from('pool_hire_enquiries').update({status,hold_until:null,updated_at:new Date().toISOString()}).eq('id',id);if(error)return alert(error.message);await loadEnquiries();};
+  window.closeCommercialEnquiry=async function(id,status){const x=ENQUIRIES.find(r=>r.id===id);if(!x||!canManage(x.site_id))return;const {error}=await sb.from('pool_hire_enquiries').update({status,hold_until:null,updated_at:new Date().toISOString()}).eq('id',id);if(error)return alert(error.message);await loadEnquiries(true);};
   window.convertCommercialEnquiry=function(id){
     const x=ENQUIRIES.find(r=>r.id===id);if(!x||!canManage(x.site_id))return;
     if(!x.hirer_id)return alert('Assign an existing hirer to the enquiry before converting it to a booking.');
@@ -108,7 +114,7 @@
       const booking={site_id:x.site_id,hirer_id:x.hirer_id,booking_type:'external_hire',booking_category:'other',external_category:'other',title:cbTitle.value.trim(),booking_date:cbDate.value,start_time:cbStart.value,end_time:cbEnd.value,status:'confirmed',rate:cbRate.value!==''?Number(cbRate.value):null,vat_applicable:cbVat.value==='true',charge_type:'chargeable',foc_reason:null,created_by:p?.id};
       const {data,error}=await sb.from('bookings').insert(booking).select().single();if(error)return alert(error.message);
       const upd=await sb.from('pool_hire_enquiries').update({status:'converted',hold_until:null,converted_booking_id:data.id,updated_at:new Date().toISOString()}).eq('id',id);if(upd.error)return alert('Booking created, but the enquiry could not be marked converted: '+upd.error.message);
-      closeM();await load();await loadEnquiries();if(typeof window.setBookingTab==='function')window.setBookingTab('single');
+      closeM();await load();await loadEnquiries(true);if(typeof window.setBookingTab==='function')window.setBookingTab('single');
     });
   };
   function slotFromElement(el){
