@@ -8,7 +8,7 @@ assert(js.includes('profileReady()'),'loader must wait for the authenticated pro
 assert(js.includes('ensurePanelShell()'),'loader must create a calendar panel fallback when insertion timing fails');
 assert(js.includes("document.getElementById('bookingTabCalendar')"),'fallback must live inside the Calendar tab');
 assert(js.includes("option value=\"archived\""),'fallback must expose the Archived filter');
-assert(js.includes('commercial-enquiries-core.js?v=20260826-6'),'core module must use the new data-init cache key');
+assert(js.includes('commercial-enquiries-core.js?v=20260826-7'),'core module must use the new data-init cache key');
 assert(js.includes("typeof window.refreshCommercialEnquiries==='function'"),'loader must explicitly request enquiry data when the core is ready');
 assert(js.includes("new CustomEvent('commercial-enquiry-saved')"),'successful standalone saves must notify fallback loaders immediately');
 assert(js.includes('async function refreshAfterSave()'),'successful standalone saves must wait for the core refresh hook');
