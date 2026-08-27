@@ -40,7 +40,7 @@
     const panel = document.createElement('section');
     panel.id = 'commercialEnquiries';
     panel.className = 'commercial-enquiries';
-    panel.innerHTML = '<div class="commercial-head"><div><h2>Commercial enquiries</h2><p>Track pool-hire opportunities, temporary holds and conversion into confirmed bookings.</p></div><button type="button" class="p" onclick="newCommercialEnquiry()">+ Add enquiry</button></div><div class="commercial-kpis" id="commercialEnquiryKpis"></div><div class="commercial-toolbar"><label>Status<select id="commercialStatus"><option value="open">Open enquiries & holds</option><option value="enquiry">Enquiries</option><option value="held">On hold</option><option value="converted">Converted</option><option value="lost">Lost</option><option value="archived">Archived</option><option value="all">All</option></select></label><label>Site<select id="commercialSite"><option value="">All accessible sites</option></select></label></div><div id="commercialEnquiryList" class="commercial-list"><div class="muted">Loading enquiries…</div></div>';
+    panel.innerHTML = '<div class="commercial-head"><div><h2>Commercial enquiries</h2><p>Track pool-hire opportunities, temporary holds and conversion into confirmed bookings.</p></div><button type="button" class="p" onclick="newCommercialEnquiry()">+ Add enquiry</button></div><div class="commercial-kpis" id="commercialEnquiryKpis"></div><div class="commercial-toolbar"><label>Status<select id="commercialStatus"><option value="open">Open enquiries & holds</option><option value="enquiry">Enquiries</option><option value="held">On hold</option><option value="expired">Expired holds</option><option value="converted">Converted</option><option value="lost">Lost</option><option value="archived">Archived</option><option value="all">All</option></select></label><label>Site<select id="commercialSite"><option value="">All accessible sites</option></select></label></div><div id="commercialEnquiryList" class="commercial-list"><div class="muted">Loading enquiries…</div></div>';
     host.appendChild(panel);
     setTimeout(() => {
       try { window.dispatchEvent(new Event('load')); } catch (_) {}
@@ -58,14 +58,16 @@
     const site = siteEl.value || '';
     const now = Date.now();
     const open = enquiryFallbackRows.filter(x => ['enquiry', 'held'].includes(x.status));
-    const holds = enquiryFallbackRows.filter(x => x.status === 'held');
+    const expiredHolds = enquiryFallbackRows.filter(x => x.status === 'held' && x.hold_until && new Date(x.hold_until).getTime() < now);
+    const holds = enquiryFallbackRows.filter(x => x.status === 'held' && !expiredHolds.includes(x));
     const expiring = holds.filter(x => x.hold_until && new Date(x.hold_until).getTime() <= now + 48 * 3600000);
-    kpis.innerHTML = `<div><span>Open opportunities</span><b>${open.length}</b></div><div><span>Active holds</span><b>${holds.length}</b></div><div><span>Holds due within 48h</span><b>${expiring.length}</b></div>`;
+    kpis.innerHTML = `<div><span>Open opportunities</span><b>${open.length}</b></div><div><span>Active holds</span><b>${holds.length}</b></div><div><span>Holds due within 48h</span><b>${expiring.length}</b></div><div><span>Expired holds</span><b>${expiredHolds.length}</b></div>`;
 
     const rows = enquiryFallbackRows.filter(x => {
       if (site && x.site_id !== site) return false;
       if (status === 'open' && !['enquiry', 'held'].includes(x.status)) return false;
-      if (status !== 'all' && status !== 'open' && x.status !== status) return false;
+      if (status === 'expired' && !expiredHolds.includes(x)) return false;
+      if (!['all', 'open', 'expired'].includes(status) && x.status !== status) return false;
       return true;
     });
 

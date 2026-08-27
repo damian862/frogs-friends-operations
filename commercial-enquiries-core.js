@@ -21,7 +21,7 @@
       panel=document.createElement('section');
       panel.id='commercialEnquiries';
       panel.className='commercial-enquiries';
-      panel.innerHTML=`<div class="commercial-head"><div><h2>Commercial enquiries</h2><p>Track pool-hire opportunities, temporary holds and conversion into confirmed bookings.</p></div>${canManage()?'<button type="button" class="p" onclick="newCommercialEnquiry()">+ Add enquiry</button>':''}</div><div class="commercial-kpis" id="commercialEnquiryKpis"></div><div class="commercial-toolbar"><label>Status<select id="commercialStatus"><option value="open">Open enquiries & holds</option><option value="enquiry">Enquiries</option><option value="held">On hold</option><option value="converted">Converted</option><option value="lost">Lost</option><option value="archived">Archived</option><option value="all">All</option></select></label><label>Site<select id="commercialSite"></select></label></div><div id="commercialEnquiryList" class="commercial-list"><div class="muted">Loading enquiries…</div></div>`;
+      panel.innerHTML=`<div class="commercial-head"><div><h2>Commercial enquiries</h2><p>Track pool-hire opportunities, temporary holds and conversion into confirmed bookings.</p></div>${canManage()?'<button type="button" class="p" onclick="newCommercialEnquiry()">+ Add enquiry</button>':''}</div><div class="commercial-kpis" id="commercialEnquiryKpis"></div><div class="commercial-toolbar"><label>Status<select id="commercialStatus"><option value="open">Open enquiries & holds</option><option value="enquiry">Enquiries</option><option value="held">On hold</option><option value="expired">Expired holds</option><option value="converted">Converted</option><option value="lost">Lost</option><option value="archived">Archived</option><option value="all">All</option></select></label><label>Site<select id="commercialSite"></select></label></div><div id="commercialEnquiryList" class="commercial-list"><div class="muted">Loading enquiries…</div></div>`;
       const shared=$id('sharedBookingCalendar');
       if(shared)shared.insertAdjacentElement('afterend',panel);else bookings.appendChild(panel);
     }
@@ -60,25 +60,27 @@
     await enquiryLoadPromise;
   }
   window.refreshCommercialEnquiries=()=>loadEnquiries(true);
+  const isExpiredHold=x=>x.status==='held'&&x.hold_until&&new Date(x.hold_until).getTime()<Date.now();
   function visibleRows(){
     const status=$id('commercialStatus')?.value||'open',site=$id('commercialSite')?.value||'';
     return ENQUIRIES.filter(x=>{
       if(site&&x.site_id!==site)return false;
       if(status==='open'&&!['enquiry','held'].includes(x.status))return false;
-      if(status!=='all'&&status!=='open'&&x.status!==status)return false;
+      if(status==='expired'&&!isExpiredHold(x))return false;
+      if(!['all','open','expired'].includes(status)&&x.status!==status)return false;
       return true;
     });
   }
   function render(){
     const list=$id('commercialEnquiryList'),kpis=$id('commercialEnquiryKpis');if(!list||!kpis)return;
-    const now=Date.now(),open=ENQUIRIES.filter(x=>['enquiry','held'].includes(x.status)),holds=ENQUIRIES.filter(x=>x.status==='held'),expiring=holds.filter(x=>x.hold_until&&new Date(x.hold_until).getTime()<=now+48*3600000);
-    kpis.innerHTML=`<div><span>Open opportunities</span><b>${open.length}</b></div><div><span>Active holds</span><b>${holds.length}</b></div><div><span>Holds due within 48h</span><b>${expiring.length}</b></div>`;
+    const now=Date.now(),open=ENQUIRIES.filter(x=>['enquiry','held'].includes(x.status)),expiredHolds=ENQUIRIES.filter(isExpiredHold),holds=ENQUIRIES.filter(x=>x.status==='held'&&!isExpiredHold(x)),expiring=holds.filter(x=>x.hold_until&&new Date(x.hold_until).getTime()<=now+48*3600000);
+    kpis.innerHTML=`<div><span>Open opportunities</span><b>${open.length}</b></div><div><span>Active holds</span><b>${holds.length}</b></div><div><span>Holds due within 48h</span><b>${expiring.length}</b></div><div><span>Expired holds</span><b>${expiredHolds.length}</b></div>`;
     const rows=visibleRows();
     list.innerHTML=rows.length?rows.map(x=>{
-      const expired=x.status==='held'&&x.hold_until&&new Date(x.hold_until).getTime()<now;
+      const expired=isExpiredHold(x);
       const hold=x.status==='held'?`<span class="commercial-hold ${expired?'expired':''}">${expired?'Hold expired':'Held until'} ${x.hold_until?new Date(x.hold_until).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):''}</span>`:'';
       const linked=x.converted_booking_id?`<button class="s" onclick="openConvertedSingleBooking('${x.converted_booking_id}')">View booking</button>`:x.converted_recurring_programme_id?`<button class="s" onclick="openConvertedRecurringProgramme('${x.converted_recurring_programme_id}')">View recurring programme</button>`:'';
-      return `<div class="commercial-row" data-enquiry-id="${x.id}"><div><b>${esc(x.enquiry_title)}</b><span>${esc(hirerName(x.hirer_id)||x.contact_name||'Prospective hirer')}</span></div><div><b>${esc(uk(x.requested_date))}</b><span>${shortTime(x.start_time)}–${shortTime(x.end_time)} · ${esc(siteName(x.site_id))}</span></div><div><span class="commercial-status ${x.status}">${esc(x.status)}</span>${hold}</div><div class="commercial-actions">${canManage(x.site_id)?`<button class="s" onclick="editCommercialEnquiry('${x.id}')">Edit</button>${linked}${x.status==='enquiry'?`<button class="s" onclick="holdCommercialEnquiry('${x.id}')">Place hold</button>`:''}${['enquiry','held'].includes(x.status)?`<button class="p" onclick="convertCommercialEnquiry('${x.id}')">Convert to single booking</button><button class="p" onclick="convertCommercialEnquiryRecurring('${x.id}')">Convert to recurring</button><button class="link" onclick="closeCommercialEnquiry('${x.id}','lost')">Lost</button>`:''}`:''}</div></div>`;
+      return `<div class="commercial-row" data-enquiry-id="${x.id}"><div><b>${esc(x.enquiry_title)}</b><span>${esc(hirerName(x.hirer_id)||x.contact_name||'Prospective hirer')}</span></div><div><b>${esc(uk(x.requested_date))}</b><span>${shortTime(x.start_time)}–${shortTime(x.end_time)} · ${esc(siteName(x.site_id))}</span></div><div><span class="commercial-status ${x.status} ${expired?'expired':''}">${expired?'Hold expired':esc(x.status)}</span>${hold}</div><div class="commercial-actions">${canManage(x.site_id)?`<button class="s" onclick="editCommercialEnquiry('${x.id}')">Edit</button>${linked}${x.status==='enquiry'?`<button class="s" onclick="holdCommercialEnquiry('${x.id}')">Place hold</button>`:''}${expired?`<button class="s" onclick="holdCommercialEnquiry('${x.id}')">Renew hold</button><button class="s" onclick="closeCommercialEnquiry('${x.id}','enquiry')">Return to enquiry</button>`:''}${['enquiry','held'].includes(x.status)?`<button class="p" onclick="convertCommercialEnquiry('${x.id}')">Convert to single booking</button><button class="p" onclick="convertCommercialEnquiryRecurring('${x.id}')">Convert to recurring</button><button class="link" onclick="closeCommercialEnquiry('${x.id}','lost')">Lost</button>`:''}`:''}</div></div>`;
     }).join(''):'<div class="commercial-empty">No enquiries match this selection.</div>';
   }
   function hirerOptions(selected){return '<option value="">Prospective / not yet a hirer</option>'+(H||[]).map(h=>`<option value="${h.id}" ${h.id===selected?'selected':''}>${esc(h.name)}</option>`).join('');}
@@ -191,5 +193,5 @@
   window.addEventListener('load',()=>setTimeout(()=>{ensurePanel();loadEnquiries();enhanceAvailabilitySlots();},250));
   if(typeof window.render==='function')OpsLifecycle.use('render',function(next){const out=next();setTimeout(()=>{ensurePanel();loadEnquiries();enhanceAvailabilitySlots();},0);return out;});
   bootstrapData();
-  const linkStyle=document.createElement('style');linkStyle.textContent='.linked-record-focus{outline:3px solid #2f80ed!important;outline-offset:2px;transition:outline-color .2s}.enquiry-origin-link{margin-left:8px}';document.head.appendChild(linkStyle);
+  const linkStyle=document.createElement('style');linkStyle.textContent='.linked-record-focus{outline:3px solid #2f80ed!important;outline-offset:2px;transition:outline-color .2s}.enquiry-origin-link{margin-left:8px}.commercial-kpis{grid-template-columns:repeat(4,minmax(0,1fr))}.commercial-status.expired{background:#fff0f0!important;color:#b42318!important}@media(max-width:900px){.commercial-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}';document.head.appendChild(linkStyle);
 })();
