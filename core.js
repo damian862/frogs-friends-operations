@@ -191,11 +191,14 @@ function bookingChargeHtml(x) {
 function bookingOrg(x) {
   return calendarOrgName(x.hirer_id);
 }
+function bookingStatusHtml(x) {
+  return x.status === 'cancelled' ? '<span class="booking-status-badge cancelled">Cancelled</span>' : '';
+}
 function renderBookingTables() {
-  let row = x => `<tr><td>${e(ukDate(x.booking_date))}</td><td><b>${e(bookingOrg(x))}</b></td><td>${e(x.title)}</td><td>${e(sn(x.site_id))}</td><td>${String(x.start_time || '').slice(0, 5)}–${String(x.end_time || '').slice(0, 5)}</td><td>${bookingChargeHtml(x)}</td><td><button class=link onclick="editBooking('${x.id}')">Edit</button></td></tr>`;
+  let row = x => `<tr class="${x.status === 'cancelled' ? 'booking-row-cancelled' : ''}"><td>${e(ukDate(x.booking_date))}</td><td><b>${e(bookingOrg(x))}</b></td><td>${e(x.title)}${bookingStatusHtml(x)}</td><td>${e(sn(x.site_id))}</td><td>${String(x.start_time || '').slice(0, 5)}–${String(x.end_time || '').slice(0, 5)}</td><td>${bookingChargeHtml(x)}</td><td><button class=link onclick="editBooking('${x.id}')">Edit</button></td></tr>`;
   if ($('rBookings')) $('rBookings').innerHTML = B.map(row).join('') || '<tr><td colspan="7" class="muted">No bookings yet.</td></tr>';
   if ($('rSingleBookings')) $('rSingleBookings').innerHTML = B.filter(x => x.booking_type !== 'school_internal').map(row).join('') || '<tr><td colspan="7" class="muted">No single bookings yet.</td></tr>';
-  if ($('rSchoolBookings')) $('rSchoolBookings').innerHTML = B.filter(x => x.booking_type === 'school_internal').map(x => `<tr><td>${e(ukDate(x.booking_date))}</td><td>${e(x.title)}</td><td>${e(sn(x.site_id))}</td><td>${String(x.start_time || '').slice(0, 5)}–${String(x.end_time || '').slice(0, 5)}</td><td>${e(x.status || 'confirmed')}</td><td><button class=link onclick="editBooking('${x.id}')">Edit</button></td></tr>`).join('') || '<tr><td colspan="6" class="muted">No school events yet.</td></tr>';
+  if ($('rSchoolBookings')) $('rSchoolBookings').innerHTML = B.filter(x => x.booking_type === 'school_internal').map(x => `<tr class="${x.status === 'cancelled' ? 'booking-row-cancelled' : ''}"><td>${e(ukDate(x.booking_date))}</td><td>${e(x.title)}</td><td>${e(sn(x.site_id))}</td><td>${String(x.start_time || '').slice(0, 5)}–${String(x.end_time || '').slice(0, 5)}</td><td>${bookingStatusHtml(x) || e(x.status || 'confirmed')}</td><td><button class=link onclick="editBooking('${x.id}')">Edit</button></td></tr>`).join('') || '<tr><td colspan="6" class="muted">No school events yet.</td></tr>';
 }
 function renderIncomeSummary() {
   let host = $('incomeSummary');
@@ -961,4 +964,3 @@ document.querySelectorAll('[data-v]').forEach(b => b.onclick = () => {
   let {data: {session}} = await sb.auth.getSession();
   if (session) await enter(session.user);
 })();
-
