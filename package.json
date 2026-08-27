@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "build": "node scripts/build-bundles.js",
-    "test": "node tests/shared-utils.test.js && node tests/build-bundles.test.js && node tests/operational-viewer-access.test.js && node tests/commercial-enquiries.test.js && node tests/cancelled-booking-display.test.js"
+    "test": "node tests/shared-utils.test.js && node tests/build-bundles.test.js && node tests/operational-viewer-access.test.js && node tests/commercial-enquiries.test.js && node tests/cancelled-booking-display.test.js && node tests/enquiry-booking-links.test.js"
   },
   "engines": {
     "node": "24.x"
