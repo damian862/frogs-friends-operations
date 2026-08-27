@@ -1,6 +1,7 @@
 const fs=require('fs');
 const assert=require('assert');
 const viewer=fs.readFileSync('viewer-access.js','utf8');
+assert(viewer.includes('canPermanentlyDelete')&&viewer.includes("'owner_admin','operations_admin'"),'booking delete controls must be administrator-only');
 const labels=fs.readFileSync('viewer-labels.js','utf8');
 const index=fs.readFileSync('index.html','utf8');
 const invite=fs.readFileSync('supabase/functions/invite-operations-user/index.ts','utf8');
