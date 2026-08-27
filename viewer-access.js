@@ -126,7 +126,9 @@
 ;
 /* source: app-47.js */
 (function () {
+  const canPermanentlyDelete=()=>['owner_admin','operations_admin'].includes(String((typeof P!=='undefined'&&P?.role)||''));
   async function removeBooking(id) {
+    if(!canPermanentlyDelete())return alert('Only administrators can permanently delete bookings. Use Cancel booking to retain an audit trail.');
     const booking = (typeof B !== 'undefined' ? B : []).find(x => x.id === id);
     if (!booking) return alert('This booking could not be found. Please refresh and try again.');
     const label = booking.title || 'booking';
@@ -149,6 +151,7 @@
   window.deleteSingleBooking = removeBooking;
   window.deleteSchoolEvent = removeBooking;
   function addDeleteButtons() {
+    if(!canPermanentlyDelete())return;
     ['rSingleBookings', 'rSchoolBookings'].forEach(bodyId => {
       const body = document.getElementById(bodyId);
       if (!body) return;

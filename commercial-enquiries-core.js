@@ -75,7 +75,7 @@
     list.innerHTML=rows.length?rows.map(x=>{
       const expired=x.status==='held'&&x.hold_until&&new Date(x.hold_until).getTime()<now;
       const hold=x.status==='held'?`<span class="commercial-hold ${expired?'expired':''}">${expired?'Hold expired':'Held until'} ${x.hold_until?new Date(x.hold_until).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):''}</span>`:'';
-      return `<div class="commercial-row"><div><b>${esc(x.enquiry_title)}</b><span>${esc(hirerName(x.hirer_id)||x.contact_name||'Prospective hirer')}</span></div><div><b>${esc(uk(x.requested_date))}</b><span>${shortTime(x.start_time)}–${shortTime(x.end_time)} · ${esc(siteName(x.site_id))}</span></div><div><span class="commercial-status ${x.status}">${esc(x.status)}</span>${hold}</div><div class="commercial-actions">${canManage(x.site_id)?`<button class="s" onclick="editCommercialEnquiry('${x.id}')">Edit</button>${x.status==='enquiry'?`<button class="s" onclick="holdCommercialEnquiry('${x.id}')">Place hold</button>`:''}${['enquiry','held'].includes(x.status)?`<button class="p" onclick="convertCommercialEnquiry('${x.id}')">Convert to booking</button><button class="link" onclick="closeCommercialEnquiry('${x.id}','lost')">Lost</button>`:''}`:''}</div></div>`;
+      return `<div class="commercial-row"><div><b>${esc(x.enquiry_title)}</b><span>${esc(hirerName(x.hirer_id)||x.contact_name||'Prospective hirer')}</span></div><div><b>${esc(uk(x.requested_date))}</b><span>${shortTime(x.start_time)}–${shortTime(x.end_time)} · ${esc(siteName(x.site_id))}</span></div><div><span class="commercial-status ${x.status}">${esc(x.status)}</span>${hold}</div><div class="commercial-actions">${canManage(x.site_id)?`<button class="s" onclick="editCommercialEnquiry('${x.id}')">Edit</button>${x.status==='enquiry'?`<button class="s" onclick="holdCommercialEnquiry('${x.id}')">Place hold</button>`:''}${['enquiry','held'].includes(x.status)?`<button class="p" onclick="convertCommercialEnquiry('${x.id}')">Convert to single booking</button><button class="p" onclick="convertCommercialEnquiryRecurring('${x.id}')">Convert to recurring</button><button class="link" onclick="closeCommercialEnquiry('${x.id}','lost')">Lost</button>`:''}`:''}</div></div>`;
     }).join(''):'<div class="commercial-empty">No enquiries match this selection.</div>';
   }
   function hirerOptions(selected){return '<option value="">Prospective / not yet a hirer</option>'+(H||[]).map(h=>`<option value="${h.id}" ${h.id===selected?'selected':''}>${esc(h.name)}</option>`).join('');}
@@ -115,6 +115,26 @@
       const {data,error}=await sb.from('bookings').insert(booking).select().single();if(error)return alert(error.message);
       const upd=await sb.from('pool_hire_enquiries').update({status:'converted',hold_until:null,converted_booking_id:data.id,updated_at:new Date().toISOString()}).eq('id',id);if(upd.error)return alert('Booking created, but the enquiry could not be marked converted: '+upd.error.message);
       closeM();await load();await loadEnquiries(true);if(typeof window.setBookingTab==='function')window.setBookingTab('single');
+    });
+  };
+  window.convertCommercialEnquiryRecurring=function(id){
+    const x=ENQUIRIES.find(r=>r.id===id);if(!x||!canManage(x.site_id))return;
+    if(!x.hirer_id)return alert('Assign an existing hirer to the enquiry before converting it to a recurring booking.');
+    const requestedDay=new Date(x.requested_date+'T12:00:00').getDay();
+    const dayNames=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    modal('Convert enquiry to recurring booking',`<label>Site<input value="${esc(siteName(x.site_id))}" disabled></label><label>Organisation<input value="${esc(hirerName(x.hirer_id))}" disabled></label><label>Booking name<input id=crTitle value="${esc(x.enquiry_title)}"></label><label>Start date<input id=crStartDate type=date value="${x.requested_date}"></label><label>End date<input id=crEndDate type=date></label><fieldset><legend>Weekly pattern</legend>${dayNames.map((d,i)=>`<label class="day-check"><input type=checkbox name=crDay value=${i} ${i===requestedDay?'checked':''}> ${d}</label>`).join('')}</fieldset><label>Start time<input id=crStart type=time value="${shortTime(x.start_time)}"></label><label>End time<input id=crEnd type=time value="${shortTime(x.end_time)}"></label><label>Hourly rate (£/hour)<input id=crRate type=number min=0 step=.01></label><label>VAT<select id=crVat><option value=false>No VAT</option><option value=true>VAT applies</option></select></label><fieldset><legend>Optional first break</legend><label>Name<input id=crBreakName placeholder="e.g. October half term"></label><label>From<input id=crBreakStart type=date></label><label>To<input id=crBreakEnd type=date></label></fieldset>`,async()=>{
+      const days=[...document.querySelectorAll('input[name=crDay]:checked')].map(el=>Number(el.value));
+      if(!crTitle.value.trim()||!crStartDate.value||!crEndDate.value||!crStart.value||!crEnd.value)return alert('Complete the booking details and dates.');
+      if(crEndDate.value<crStartDate.value)return alert('End date must be on or after the start date.');
+      if(crEnd.value<=crStart.value)return alert('End time must be after start time.');
+      if(!days.length)return alert('Select at least one weekly day.');
+      const hasBreak=crBreakName.value.trim()||crBreakStart.value||crBreakEnd.value;
+      if(hasBreak&&(!crBreakName.value.trim()||!crBreakStart.value))return alert('Complete the break name and start date, or leave the break blank.');
+      const breaks=hasBreak?[{name:crBreakName.value.trim(),starts_on:crBreakStart.value,ends_on:crBreakEnd.value||crBreakStart.value}]:[];
+      const {data,error}=await sb.rpc('convert_commercial_enquiry_to_recurring',{p_enquiry_id:id,p_name:crTitle.value.trim(),p_starts_on:crStartDate.value,p_ends_on:crEndDate.value,p_days:days,p_start_time:crStart.value,p_end_time:crEnd.value,p_rate:crRate.value!==''?Number(crRate.value):null,p_vat_applicable:crVat.value==='true',p_breaks:breaks});
+      if(error)return alert(error.message);
+      closeM();await load();await loadEnquiries(true);if(typeof window.setBookingTab==='function')window.setBookingTab('recurring');
+      if(data&&typeof window.manageProgramme==='function')window.manageProgramme(data);
     });
   };
   function slotFromElement(el){
