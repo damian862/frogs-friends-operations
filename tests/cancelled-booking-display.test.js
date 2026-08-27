@@ -1,0 +1,10 @@
+const fs=require('fs');
+const assert=require('assert');
+const core=fs.readFileSync('core.js','utf8');
+const css=fs.readFileSync('cancelled-bookings.css','utf8');
+const index=fs.readFileSync('index.html','utf8');
+assert(core.includes('bookingStatusHtml')&&core.includes('booking-status-badge cancelled'),'cancelled bookings must render a clear status badge');
+assert(core.includes('booking-row-cancelled'),'cancelled booking rows must have a dedicated visual state');
+assert(css.includes('.booking-row-cancelled')&&css.includes('.booking-status-badge.cancelled'),'cancelled booking styling must ship with the runtime');
+assert(index.includes('cancelled-bookings.css'),'cancelled booking styling must be loaded');
+console.log('cancelled booking display tests passed');
