@@ -9,14 +9,15 @@
 
   const esc = value => String(value ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const shortTime = value => String(value || '').slice(0, 5);
-  const MANAGE_ENQUIRY_ROLES = new Set(['owner_admin', 'operations_admin', 'site_manager', 'pool_manager', 'lettings_manager']);
+  const ORGANISATION_WIDE_ENQUIRY_ROLES = new Set(['owner_admin', 'operations_admin']);
   const canManageCommercialEnquiries = siteId => {
     try {
-      if (MANAGE_ENQUIRY_ROLES.has(String(typeof P !== 'undefined' && P ? P.role || '' : ''))) return true;
+      if (ORGANISATION_WIDE_ENQUIRY_ROLES.has(String(typeof P !== 'undefined' && P ? P.role || '' : ''))) return true;
     } catch (_) {}
     return enquiryFallbackMemberships.some(m => m.can_edit_bookings === true && (!siteId || m.site_id === siteId));
   };
   window.canManageCommercialSite = canManageCommercialEnquiries;
+  window.getCommercialAccessibleSites = () => enquiryFallbackSites.filter(site => canManageCommercialEnquiries(site.id));
   const siteName = id => {
     const fallback = enquiryFallbackSites.find(x => x.id === id)?.name;
     if (fallback) return fallback;
@@ -108,10 +109,11 @@
       enquiryFallbackRows = enquiryResult.data || [];
       enquiryFallbackSites = siteResult.data || [];
       enquiryFallbackMemberships = membershipResult.data || [];
+      const accessibleSites = window.getCommercialAccessibleSites();
       const siteEl = document.getElementById('commercialSite');
       if (siteEl) {
         const current = siteEl.value;
-        siteEl.innerHTML = '<option value="">All accessible sites</option>' + enquiryFallbackSites.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
+        siteEl.innerHTML = '<option value="">All accessible sites</option>' + accessibleSites.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
         if ([...siteEl.options].some(o => o.value === current)) siteEl.value = current;
         siteEl.onchange = renderCommercialEnquiryFallback;
       }

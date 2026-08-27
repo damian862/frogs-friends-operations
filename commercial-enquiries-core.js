@@ -1,12 +1,13 @@
 (function(){
-  const MANAGE_ROLES=new Set(['owner_admin','operations_admin','site_manager','pool_manager','lettings_manager']);
+  const ORGANISATION_WIDE_ROLES=new Set(['owner_admin','operations_admin']);
   let ENQUIRIES=[];
   let enquiryLoadPromise=null;
   const $id=id=>document.getElementById(id);
   const esc=value=>typeof e==='function'?e(value):String(value??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const shortTime=v=>String(v||'').slice(0,5);
   const profile=()=>{try{return typeof P!=='undefined'?P:(window.P||null);}catch(_){return window.P||null;}};
-  const canManage=siteId=>MANAGE_ROLES.has(String(profile()?.role||''))||(typeof window.canManageCommercialSite==='function'&&window.canManageCommercialSite(siteId||activeSite()));
+  const canManage=siteId=>ORGANISATION_WIDE_ROLES.has(String(profile()?.role||''))||(typeof window.canManageCommercialSite==='function'&&window.canManageCommercialSite(siteId||activeSite()));
+  const accessibleSites=()=>typeof window.getCommercialAccessibleSites==='function'?window.getCommercialAccessibleSites():(S||[]).filter(site=>canManage(site.id));
   const isViewer=()=>String(profile()?.role||'')==='operational_viewer';
   const activeSite=()=>typeof window.getActiveSiteId==='function'?window.getActiveSiteId():($id('calSite')?.value||'');
   const siteName=id=>(S||[]).find(x=>x.id===id)?.name||'';
@@ -32,7 +33,7 @@
   function refreshSiteOptions(){
     const sel=$id('commercialSite');if(!sel)return;
     const current=sel.value,context=activeSite();
-    sel.innerHTML='<option value="">All accessible sites</option>'+(S||[]).map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
+    sel.innerHTML='<option value="">All accessible sites</option>'+accessibleSites().map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
     const wanted=context||current;if([...sel.options].some(o=>o.value===wanted))sel.value=wanted;
   }
   async function loadEnquiries(force=false){
@@ -84,7 +85,7 @@
     }).join(''):'<div class="commercial-empty">No enquiries match this selection.</div>';
   }
   function hirerOptions(selected){return '<option value="">Prospective / not yet a hirer</option>'+(H||[]).map(h=>`<option value="${h.id}" ${h.id===selected?'selected':''}>${esc(h.name)}</option>`).join('');}
-  function siteOptions(selected){return (S||[]).map(s=>`<option value="${s.id}" ${s.id===selected?'selected':''}>${esc(s.name)}</option>`).join('');}
+  function siteOptions(selected){return accessibleSites().map(s=>`<option value="${s.id}" ${s.id===selected?'selected':''}>${esc(s.name)}</option>`).join('');}
   window.newCommercialEnquiry=function(prefill={}){if(!canManage())return;openEditor(null,prefill);};
   window.editCommercialEnquiry=function(id){const x=ENQUIRIES.find(r=>r.id===id);if(!x||!canManage(x.site_id))return;openEditor(x,{});};
   function focusTarget(selector){setTimeout(()=>{const el=document.querySelector(selector);if(!el)return;el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('linked-record-focus');setTimeout(()=>el.classList.remove('linked-record-focus'),2200);},60);}
@@ -105,7 +106,7 @@
     ensurePanel();if($id('commercialStatus'))$id('commercialStatus').value='all';if($id('commercialSite'))$id('commercialSite').value=x.site_id||'';render();focusTarget(`[data-enquiry-id="${id}"]`);
   };
   function openEditor(existing,prefill){
-    const x=existing||{},site=prefill.site_id||x.site_id||activeSite()||(S||[])[0]?.id||'',date=prefill.requested_date||x.requested_date||'',start=prefill.start_time||shortTime(x.start_time),end=prefill.end_time||shortTime(x.end_time);
+    const x=existing||{},site=prefill.site_id||x.site_id||activeSite()||accessibleSites()[0]?.id||'',date=prefill.requested_date||x.requested_date||'',start=prefill.start_time||shortTime(x.start_time),end=prefill.end_time||shortTime(x.end_time);
     modal(existing?'Edit commercial enquiry':'Add commercial enquiry',`<label>Site<select id=ceSite>${siteOptions(site)}</select></label><label>Existing hirer<select id=ceHirer>${hirerOptions(x.hirer_id||'')}</select></label><label>Enquiry / organisation name<input id=ceTitle value="${esc(x.enquiry_title||'')}" placeholder="e.g. ABC Swim Club pool hire"></label><label>Contact name<input id=ceContact value="${esc(x.contact_name||'')}"></label><label>Email<input id=ceEmail type=email value="${esc(x.contact_email||'')}"></label><label>Phone<input id=cePhone value="${esc(x.contact_phone||'')}"></label><label>Date<input id=ceDate type=date value="${esc(date)}"></label><label>Start<input id=ceStart type=time value="${esc(start)}"></label><label>End<input id=ceEnd type=time value="${esc(end)}"></label><label>Notes<textarea id=ceNotes>${esc(x.notes||'')}</textarea></label>`,async()=>{
       if(!ceSite.value||!ceTitle.value.trim()||!ceDate.value||!ceStart.value||!ceEnd.value)return alert('Complete the site, enquiry name, date and times.');
       if(ceEnd.value<=ceStart.value)return alert('End time must be after start time.');
