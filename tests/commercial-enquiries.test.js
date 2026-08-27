@@ -21,6 +21,7 @@ assert(fallback.includes('Place hold')&&fallback.includes('Convert to booking')&
 assert(fallback.includes("site_memberships")&&fallback.includes("can_edit_bookings"),'fallback permissions must match the site-level booking permission used by enquiry writes');
 assert(fallback.includes("ORGANISATION_WIDE_ENQUIRY_ROLES")&&fallback.includes("getCommercialAccessibleSites"),'only organisation-wide admins may bypass site membership and enquiry site options must be filtered');
 assert(entry.includes("getCommercialAccessibleSites")&&js.includes("accessibleSites()"),'both enquiry editors and the enquiry filter must use accessible sites');
+assert(js.includes("sb.from('site_memberships')")&&js.includes('ACCESSIBLE_SITE_IDS=new Set'),'the authoritative enquiry loader must load site membership context before rendering');
 assert(js.includes('window.canManageCommercialSite'),'core actions must honour the site-level booking permission');
 assert(fallback.includes("typeof window.refreshCommercialEnquiries === 'function'")&&fallback.includes('await window.refreshCommercialEnquiries()'),'fallback must hand rendering to the core once it is ready');
 assert(js.includes("isViewer()")&&js.includes("if(isViewer())return"),'operational viewer must not load commercial enquiries');

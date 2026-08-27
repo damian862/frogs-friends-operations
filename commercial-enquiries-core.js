@@ -1,13 +1,15 @@
 (function(){
   const ORGANISATION_WIDE_ROLES=new Set(['owner_admin','operations_admin']);
   let ENQUIRIES=[];
+  let ACCESSIBLE_SITE_IDS=null;
   let enquiryLoadPromise=null;
   const $id=id=>document.getElementById(id);
   const esc=value=>typeof e==='function'?e(value):String(value??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const shortTime=v=>String(v||'').slice(0,5);
   const profile=()=>{try{return typeof P!=='undefined'?P:(window.P||null);}catch(_){return window.P||null;}};
-  const canManage=siteId=>ORGANISATION_WIDE_ROLES.has(String(profile()?.role||''))||(typeof window.canManageCommercialSite==='function'&&window.canManageCommercialSite(siteId||activeSite()));
-  const accessibleSites=()=>typeof window.getCommercialAccessibleSites==='function'?window.getCommercialAccessibleSites():(S||[]).filter(site=>canManage(site.id));
+  const organisationWide=()=>ORGANISATION_WIDE_ROLES.has(String(profile()?.role||''));
+  const canManage=siteId=>organisationWide()||(ACCESSIBLE_SITE_IDS?ACCESSIBLE_SITE_IDS.has(siteId||activeSite()):(typeof window.canManageCommercialSite==='function'&&window.canManageCommercialSite(siteId||activeSite())));
+  const accessibleSites=()=>organisationWide()?(S||[]):(S||[]).filter(site=>canManage(site.id));
   const isViewer=()=>String(profile()?.role||'')==='operational_viewer';
   const activeSite=()=>typeof window.getActiveSiteId==='function'?window.getActiveSiteId():($id('calSite')?.value||'');
   const siteName=id=>(S||[]).find(x=>x.id===id)?.name||'';
@@ -47,8 +49,16 @@
     }
     enquiryLoadPromise=(async()=>{
     try{
-      const {data,error}=await sb.rpc('visible_commercial_enquiries');
+      const [enquiryResult,membershipResult]=await Promise.all([
+        sb.rpc('visible_commercial_enquiries'),
+        sb.from('site_memberships').select('site_id,can_edit_bookings').eq('user_id',profile().id)
+      ]);
+      const {data,error}=enquiryResult;
       if(error)throw error;
+      if(membershipResult.error)throw membershipResult.error;
+      ACCESSIBLE_SITE_IDS=new Set((membershipResult.data||[]).filter(row=>row.can_edit_bookings===true).map(row=>row.site_id));
+      window.canManageCommercialSite=siteId=>canManage(siteId);
+      window.getCommercialAccessibleSites=()=>accessibleSites();
       ENQUIRIES=data||[];refreshSiteOptions();render();
       if(typeof window.renderBookingTables==='function')window.renderBookingTables();
       if(typeof window.renderRecurringBookings==='function')window.renderRecurringBookings();
