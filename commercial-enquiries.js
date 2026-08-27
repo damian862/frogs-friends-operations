@@ -9,7 +9,14 @@
   function viewer(){
     try{return profileReady()&&String(P.role)==='operational_viewer';}catch(_){return false;}
   }
-  function listSites(){try{return Array.isArray(S)?S:[];}catch(_){return [];}}
+  function listSites(){
+    try{
+      const sites=Array.isArray(S)?S:[];
+      if(typeof window.getCommercialAccessibleSites==='function')return window.getCommercialAccessibleSites();
+      if(typeof window.canManageCommercialSite==='function')return sites.filter(site=>window.canManageCommercialSite(site.id));
+      return sites;
+    }catch(_){return [];}
+  }
   function listHirers(){try{return Array.isArray(H)?H:[];}catch(_){return [];}}
   function esc(v){return typeof e==='function'?e(v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
   function activeSite(){
@@ -137,7 +144,7 @@
     };
     tick();
   }
-  load('commercial-enquiries-core.js?v=20260827-10')
+  load('commercial-enquiries-core.js?v=20260827-11')
     .then(()=>load('commercial-enquiry-archive.js?v=20260826-2'))
     .then(()=>setTimeout(ensureStarted,0))
     .catch(err=>console.error('Commercial enquiry module failed to load',err));
