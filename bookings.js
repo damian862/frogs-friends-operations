@@ -686,12 +686,16 @@ editCancellation = function (id, pid) {
     const panel = document.getElementById('bookingTabIncome');
     const heading = panel?.querySelector(':scope > .term-top h2');
     const description = panel?.querySelector(':scope > .term-top p');
+    const collapseButton = panel?.querySelector(':scope > .section-collapse-bar button');
     if (heading && heading.textContent !== 'Monthly Billing Check') heading.textContent = 'Monthly Billing Check';
     if (description && description.textContent !== 'Review monthly pool-hire statements before they move to Lettings approval.') description.textContent = 'Review monthly pool-hire statements before they move to Lettings approval.';
+    if (collapseButton?.lastChild?.nodeType === Node.TEXT_NODE && collapseButton.lastChild.nodeValue !== ' Monthly Billing Check') collapseButton.lastChild.nodeValue = ' Monthly Billing Check';
     const reportControls = document.getElementById('reportControls');
     const incomeSummary = document.getElementById('incomeSummary');
+    const staffingServices = document.getElementById('lifeguardServices');
     if (reportControls) reportControls.style.display = 'none';
     if (incomeSummary) incomeSummary.style.display = 'none';
+    if (staffingServices) staffingServices.style.display = 'none';
   }
   function applyRoleUi() {
     document.querySelectorAll('[data-btab="income"]').forEach(x => x.style.display = canViewFinance() ? '' : 'none');
