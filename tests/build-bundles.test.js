@@ -4,7 +4,7 @@ execFileSync(process.execPath,[path.join(root,'scripts/build-bundles.js')],{cwd:
 const manifest=JSON.parse(fs.readFileSync(path.join(root,'dist/runtime-manifest.json'),'utf8'));
 assert.strictEqual(manifest.bundleCount,7);assert.strictEqual(manifest.sourceCount,7);assert.deepStrictEqual(manifest.bundles,runtime);assert.strictEqual(fs.readdirSync(root).filter(f=>/^app-\d+\.js$/.test(f)).length,0,'legacy app-N files remain');
 const index=fs.readFileSync(path.join(root,'index.html'),'utf8');
-for(const file of runtime){assert(index.includes('<script src="'+file+'"></script>'),'index missing '+file);execFileSync(process.execPath,['--check',path.join(root,file)],{stdio:'pipe'});}assert(!index.includes('app-15.js'),'legacy entry point remains');
+for(const file of runtime){assert(new RegExp('<script src="'+file.replace('.', '\\.')+'(?:\\?[^\"]*)?"></script>').test(index),'index missing '+file);execFileSync(process.execPath,['--check',path.join(root,file)],{stdio:'pipe'});}assert(!index.includes('app-15.js'),'legacy entry point remains');
 const localScripts=[...index.matchAll(/<script\s+[^>]*src=["']([^"']+\.js)(?:\?[^"']*)?["'][^>]*><\/script>/gi)].map(m=>m[1]).filter(src=>!/^https?:\/\//i.test(src)&&!src.startsWith('//'));
 for(const file of [...new Set(localScripts)]){
   const source=path.join(root,file),built=path.join(root,'dist',file);
