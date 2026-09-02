@@ -678,12 +678,28 @@ editCancellation = function (id, pid) {
   const canInvoice = () => isOwner() || role() === 'finance';
   const canViewFinance = () => isOwner() || ['pool_manager', 'lettings_manager', 'finance', 'bursar'].includes(role());
   const canEditBookings = () => isOwner() || ['pool_manager', 'lettings_manager', 'booking_admin'].includes(role());
+  function applyPoolManagerBillingView() {
+    if (role() !== 'pool_manager') return;
+    document.querySelectorAll('[data-btab="income"]').forEach(x => {
+      if (x.textContent !== 'Monthly Billing Check') x.textContent = 'Monthly Billing Check';
+    });
+    const panel = document.getElementById('bookingTabIncome');
+    const heading = panel?.querySelector(':scope > .term-top h2');
+    const description = panel?.querySelector(':scope > .term-top p');
+    if (heading && heading.textContent !== 'Monthly Billing Check') heading.textContent = 'Monthly Billing Check';
+    if (description && description.textContent !== 'Review monthly pool-hire statements before they move to Lettings approval.') description.textContent = 'Review monthly pool-hire statements before they move to Lettings approval.';
+    const reportControls = document.getElementById('reportControls');
+    const incomeSummary = document.getElementById('incomeSummary');
+    if (reportControls) reportControls.style.display = 'none';
+    if (incomeSummary) incomeSummary.style.display = 'none';
+  }
   function applyRoleUi() {
     document.querySelectorAll('[data-btab="income"]').forEach(x => x.style.display = canViewFinance() ? '' : 'none');
     document.querySelectorAll('#bookings .p').forEach(btn => {
       const t = (btn.textContent || '').toLowerCase();
       if ((t.includes('add single') || t.includes('add booking') || t.includes('add school') || t.includes('add recurring')) && !canEditBookings()) btn.style.display = 'none';
     });
+    applyPoolManagerBillingView();
     applyBillingButtons();
   }
   function applyBillingButtons() {
@@ -708,7 +724,10 @@ editCancellation = function (id, pid) {
       return originalBillingAction(id, action);
     };
   }
-  const observer = new MutationObserver(() => applyBillingButtons());
+  const observer = new MutationObserver(() => {
+    applyPoolManagerBillingView();
+    applyBillingButtons();
+  });
   observer.observe(document.body, {
     childList: true,
     subtree: true
@@ -1088,4 +1107,3 @@ editCancellation = function (id, pid) {
   }
   inject();
 })();
-
