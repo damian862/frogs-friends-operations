@@ -13,6 +13,8 @@ assert(bookings.includes("if (role() !== 'pool_manager') return;"), 'Pool Manage
 assert(bookings.includes("x.textContent = 'Monthly Billing Check'"), 'Pool Manager finance tab must be labelled for its limited purpose');
 assert(bookings.includes("reportControls.style.display = 'none'"), 'Pool Manager must not see general income reporting controls');
 assert(bookings.includes("incomeSummary.style.display = 'none'"), 'Pool Manager must not see general usage and income summaries');
-assert(html.includes('bookings.js?v=20260902-1'), 'bookings cache key must be refreshed');
+assert(bookings.includes("staffingServices.style.display = 'none'"), 'Pool Manager must not see staffing income reporting');
+assert(bookings.includes("collapseButton.lastChild.nodeValue = ' Monthly Billing Check'"), 'the collapsible section must use the restricted billing label');
+assert(html.includes('bookings.js?v=20260902-2'), 'bookings cache key must be refreshed');
 
 console.log('dashboard finance access tests passed');
