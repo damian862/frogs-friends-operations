@@ -26,7 +26,8 @@
   const sessions = () => (typeof RS !== 'undefined' && Array.isArray(RS)) ? RS : [];
   const breaks = () => (typeof BR !== 'undefined' && Array.isArray(BR)) ? BR : [];
   const exceptions = () => (typeof EX !== 'undefined' && Array.isArray(EX)) ? EX : [];
-  const isViewer = () => (el('role')?.textContent || '').trim().toLowerCase() === 'operational viewer';
+  const dashboardFinanceRoles = new Set(['owner_admin', 'operations_admin', 'site_manager', 'lettings_manager', 'finance', 'bursar']);
+  const canViewDashboardFinance = () => dashboardFinanceRoles.has(String(P?.role || '').trim().toLowerCase());
 
   function status(text,bad=false){
     const x=el('dashReportStatus'); if(!x)return;
@@ -53,7 +54,7 @@
 
   function initialise(){
     const panel=el('opsDashboardReporting'); if(!panel)return false;
-    if(isViewer()){ panel.style.display='none'; return false; }
+    if(!canViewDashboardFinance()){ panel.style.display='none'; return false; }
     panel.style.display='';
     const month=el('dashReportMonth'), site=el('dashReportSite');
     if(!month||!site)return false;
